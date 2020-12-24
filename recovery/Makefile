@@ -27,4 +27,6 @@ MODULE    = $(CONFIG_SERVICES_RECOVERY)
 
 MAINSRC = recovery.c
 
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/C}
+
 include $(APPDIR)/Application.mk
