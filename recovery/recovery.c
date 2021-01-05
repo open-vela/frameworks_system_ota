@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <syslog.h>
 
 #include "recovery.h"
 
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
   int ret;
   int normalboot = NORMAL_BOOT;
 
-  printf("Recovery Service!\n");
+  syslog(LOG_INFO, "Recovery Service start!\n");
 
 #ifdef CONFIG_LIB_LZMA
   CFileSeqInStream inStream;
@@ -136,28 +137,28 @@ int main(int argc, char *argv[])
   File_Construct(&outStream.file);
 
   if (InFile_Open(&inStream.file, argv[1]) != 0) {
-    printf("Can not open input file");
+    syslog(LOG_ERR, "Can not open input file %s\n", argv[1]);
     return -1;
   }
 
   if (OutFile_Open(&outStream.file, argv[2]) != 0) {
-    printf("Can not open output file");
+    syslog(LOG_ERR, "Can not open output file %s\n", argv[2]);
     return -1;
   }
 
   ret = decode(&outStream.vt, &inStream.vt);
   if (ret != SZ_OK) {
-    printf("Decode failed\n");
+    syslog(LOG_ERR, "Decode failed\n");
     if (ret == SZ_ERROR_MEM)
-      printf("Decode failed, mem error\n");
+      syslog(LOG_ERR, "Decode failed, mem error\n");
     else if (ret == SZ_ERROR_DATA)
-      printf("Decode failed, data error\n");
+      syslog(LOG_ERR, "Decode failed, data error\n");
     else if (ret == SZ_ERROR_WRITE)
-      printf("Decode failed, write error\n");
+      syslog(LOG_ERR, "Decode failed, write error\n");
     else if (ret == SZ_ERROR_READ)
-      printf("Decode failed, read error\n");
+      syslog(LOG_ERR, "Decode failed, read error\n");
     else
-      printf("Decode failed, unknown error\n");
+      syslog(LOG_ERR, "Decode failed, unknown error\n");
 
     return -1;
   }
@@ -174,32 +175,31 @@ int main(int argc, char *argv[])
   struct stat sb;
 
   if ((read_fd = open(APP_BIN, O_RDONLY)) < 0) {
-    printf("open %s failed\n", APP_BIN);
+    syslog(LOG_ERR, "open %s failed\n", APP_BIN);
     return -1;
   }
 
   //if ((write_fd = open(APP_DEV, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) < 0) {
   if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
-    printf("open %s failed\n", APP_DEV);
+    syslog(LOG_ERR, "open %s failed\n", APP_DEV);
     return -1;
   }
 
   if (fstat(read_fd, &sb) == -1) {
-      printf("stat %s failed\n", APP_BIN);
+      syslog(LOG_ERR, "stat %s failed\n", APP_BIN);
       return -1;
   }
 
   file_len = sb.st_size;
-  printf("%s size %d\n", APP_BIN, file_len);
 
   while (file_len > 0) {
     if ((len = read(read_fd, buf, MAX_SIZE)) < 0) {
-      printf("read buf failed, ret %d\n", len);
+      syslog(LOG_ERR, "read buf failed, ret %d\n", len);
       return -1;
     }
 
     if ((ret = write(write_fd, buf, len)) < 0) {
-      printf("write buf failed, ret %d\n", ret);
+      syslog(LOG_ERR, "write buf failed, ret %d\n", ret);
       return -1;
     }
 
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 
   /* Finally write the magic number for BES */
   if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
-    printf("open %s failed\n", APP_DEV);
+    syslog(LOG_ERR, "open %s failed\n", APP_DEV);
     return -1;
   }
 
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
 
   close(write_fd);
 
-  printf("Recovery Service done, start rebooting to normal system!\n");
+  syslog(LOG_INFO, "Recovery Service done, start rebooting to normal system!\n");
   system("reboot 0");
 
   return 0;
