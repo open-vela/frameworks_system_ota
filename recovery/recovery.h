@@ -2,13 +2,13 @@
 #define _RECOVERY_H_
 
 #ifdef CONFIG_LIB_LZMA
+
 #include "Alloc.h"
 #include "7zFile.h"
 #include "7zVersion.h"
 #include "LzmaDec.h"
 
-#define IN_BUF_SIZE (1 << 16)
-#define OUT_BUF_SIZE (1 << 16)
+extern SRes decode(ISeqOutStream *outStream, ISeqInStream *inStream);
 
 #endif
 
