@@ -3,12 +3,12 @@
 
 #ifdef CONFIG_LIB_LZMA
 
-#include "Alloc.h"
 #include "7zFile.h"
 #include "7zVersion.h"
+#include "Alloc.h"
 #include "LzmaDec.h"
 
-extern SRes decode(ISeqOutStream *outStream, ISeqInStream *inStream);
+extern SRes decode(ISeqOutStream* outStream, ISeqInStream* inStream);
 
 #endif
 
@@ -18,8 +18,7 @@ extern SRes decode(ISeqOutStream *outStream, ISeqInStream *inStream);
 #define MAX_SIZE 4096
 
 /* Normal nuttx boot magic number */
-#define BOOT_MAGIC_NUMBER       0xBE57EC1C
-#define NORMAL_BOOT             BOOT_MAGIC_NUMBER
-
+#define BOOT_MAGIC_NUMBER 0xBE57EC1C
+#define NORMAL_BOOT BOOT_MAGIC_NUMBER
 
 #endif

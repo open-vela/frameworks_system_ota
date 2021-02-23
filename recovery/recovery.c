@@ -22,128 +22,182 @@
  * Included Files
  ****************************************************************************/
 
+#include <fcntl.h>
 #include <nuttx/config.h>
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <stdlib.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include "recovery.h"
+#include "velaimg.h"
 
 /****************************************************************************
  * recovery_main
  ****************************************************************************/
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-  int write_fd;
-  int ret;
-  int normalboot = NORMAL_BOOT;
+    int write_fd;
+    int ret;
+    int normalboot = NORMAL_BOOT;
 
-  syslog(LOG_INFO, "Recovery Service start!\n");
+    syslog(LOG_INFO, "Recovery Service start!\n");
 
-#ifdef CONFIG_LIB_LZMA
+#ifdef CONFIG_LIB_MBEDTLS
+    FILE* f;
+    vela_img_hdr header;
+    char* image;
+    char signature[256];
 
-  CFileSeqInStream inStream;
-  CFileOutStream outStream;
-
-  FileSeqInStream_CreateVTable(&inStream);
-  File_Construct(&inStream.file);
-
-  FileOutStream_CreateVTable(&outStream);
-  File_Construct(&outStream.file);
-
-  if (InFile_Open(&inStream.file, argv[1]) != 0) {
-    syslog(LOG_ERR, "Can not open input file %s\n", argv[1]);
-    return -1;
-  }
-
-  if (OutFile_Open(&outStream.file, argv[2]) != 0) {
-    syslog(LOG_ERR, "Can not open output file %s\n", argv[2]);
-    return -1;
-  }
-
-  ret = decode(&outStream.vt, &inStream.vt);
-  if (ret != SZ_OK) {
-    syslog(LOG_ERR, "Decode failed\n");
-    if (ret == SZ_ERROR_MEM)
-      syslog(LOG_ERR, "Decode failed, mem error\n");
-    else if (ret == SZ_ERROR_DATA)
-      syslog(LOG_ERR, "Decode failed, data error\n");
-    else if (ret == SZ_ERROR_WRITE)
-      syslog(LOG_ERR, "Decode failed, write error\n");
-    else if (ret == SZ_ERROR_READ)
-      syslog(LOG_ERR, "Decode failed, read error\n");
-    else
-      syslog(LOG_ERR, "Decode failed, unknown error\n");
-
-    return -1;
-  }
-
-  File_Close(&outStream.file);
-  File_Close(&inStream.file);
-
-#else
-
-  int read_fd;
-  int file_len;
-  int len;
-  char buf[MAX_SIZE];
-  struct stat sb;
-
-  if ((read_fd = open(APP_BIN, O_RDONLY)) < 0) {
-    syslog(LOG_ERR, "open %s failed\n", APP_BIN);
-    return -1;
-  }
-
-  //if ((write_fd = open(APP_DEV, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) < 0) {
-  if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
-    syslog(LOG_ERR, "open %s failed\n", APP_DEV);
-    return -1;
-  }
-
-  if (fstat(read_fd, &sb) == -1) {
-      syslog(LOG_ERR, "stat %s failed\n", APP_BIN);
-      return -1;
-  }
-
-  file_len = sb.st_size;
-
-  while (file_len > 0) {
-    if ((len = read(read_fd, buf, MAX_SIZE)) < 0) {
-      syslog(LOG_ERR, "read buf failed, ret %d\n", len);
-      return -1;
+    if ((f = fopen(argv[1], "rb")) == NULL) {
+        syslog(LOG_ERR, "Could not open %s\n\n", argv[1]);
+        return -1;
     }
 
-    if ((ret = write(write_fd, buf, len)) < 0) {
-      syslog(LOG_ERR, "write buf failed, ret %d\n", ret);
-      return -1;
+    ret = fread(&header, 1, sizeof(header), f);
+    if (ret != sizeof(header)) {
+        syslog(LOG_INFO, "read header failed\n");
+        return -1;
     }
 
-    file_len -= len;
-  }
+    syslog(LOG_INFO, "vela header: magic %s, image size %d, signature size %d\n",
+        header.magic, header.image_size, header.sign_size);
 
-  close(read_fd);
-  close(write_fd);
+    image = malloc(header.image_size);
+    if (!image) {
+        syslog(LOG_INFO, "malloc failed\n");
+        return -1;
+    }
+
+    ret = fread(image, 1, header.image_size, f);
+    if (ret != header.image_size) {
+        syslog(LOG_INFO, "read raw image failed\n");
+        goto exit;
+    }
+
+    ret = fread(signature, 1, header.sign_size, f);
+    if (ret != header.sign_size) {
+        syslog(LOG_INFO, "read signature failed\n");
+        goto exit;
+    }
+
+    ret = verify_vela_image(&header, image, signature);
+    if (ret) {
+        syslog(LOG_ERR, "Verify vela image failed\n");
+        goto exit;
+    }
+
+exit:
+    free(image);
+    fclose(f);
+
+    if (ret)
+        return ret;
 
 #endif
 
-  /* Finally write the magic number for BES */
-  if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
-    syslog(LOG_ERR, "open %s failed\n", APP_DEV);
-    return -1;
-  }
+#ifdef CONFIG_LIB_LZMA
 
-  lseek(write_fd, 0, SEEK_SET);
-  write(write_fd, &normalboot, 4);
+    CFileSeqInStream inStream;
+    CFileOutStream outStream;
 
-  close(write_fd);
+    FileSeqInStream_CreateVTable(&inStream);
+    File_Construct(&inStream.file);
 
-  syslog(LOG_INFO, "Recovery Service done, start rebooting to normal system!\n");
-  system("reboot 0");
+    FileOutStream_CreateVTable(&outStream);
+    File_Construct(&outStream.file);
 
-  return 0;
+    if (InFile_Open(&inStream.file, argv[1]) != 0) {
+        syslog(LOG_ERR, "Can not open input file %s\n", argv[1]);
+        return -1;
+    }
+
+    if (OutFile_Open(&outStream.file, argv[2]) != 0) {
+        syslog(LOG_ERR, "Can not open output file %s\n", argv[2]);
+        return -1;
+    }
+
+    ret = decode(&outStream.vt, &inStream.vt);
+    if (ret != SZ_OK) {
+        syslog(LOG_ERR, "Decode failed\n");
+        if (ret == SZ_ERROR_MEM)
+            syslog(LOG_ERR, "Decode failed, mem error\n");
+        else if (ret == SZ_ERROR_DATA)
+            syslog(LOG_ERR, "Decode failed, data error\n");
+        else if (ret == SZ_ERROR_WRITE)
+            syslog(LOG_ERR, "Decode failed, write error\n");
+        else if (ret == SZ_ERROR_READ)
+            syslog(LOG_ERR, "Decode failed, read error\n");
+        else
+            syslog(LOG_ERR, "Decode failed, unknown error\n");
+
+        return -1;
+    }
+
+    File_Close(&outStream.file);
+    File_Close(&inStream.file);
+
+#else
+
+    int read_fd;
+    int file_len;
+    int len;
+    char buf[MAX_SIZE];
+    struct stat sb;
+
+    if ((read_fd = open(APP_BIN, O_RDONLY)) < 0) {
+        syslog(LOG_ERR, "open %s failed\n", APP_BIN);
+        return -1;
+    }
+
+    //if ((write_fd = open(APP_DEV, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)) < 0) {
+    if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
+        syslog(LOG_ERR, "open %s failed\n", APP_DEV);
+        return -1;
+    }
+
+    if (fstat(read_fd, &sb) == -1) {
+        syslog(LOG_ERR, "stat %s failed\n", APP_BIN);
+        return -1;
+    }
+
+    file_len = sb.st_size;
+
+    while (file_len > 0) {
+        if ((len = read(read_fd, buf, MAX_SIZE)) < 0) {
+            syslog(LOG_ERR, "read buf failed, ret %d\n", len);
+            return -1;
+        }
+
+        if ((ret = write(write_fd, buf, len)) < 0) {
+            syslog(LOG_ERR, "write buf failed, ret %d\n", ret);
+            return -1;
+        }
+
+        file_len -= len;
+    }
+
+    close(read_fd);
+    close(write_fd);
+
+#endif
+
+    /* Finally write the magic number for BES */
+    if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
+        syslog(LOG_ERR, "open %s failed\n", APP_DEV);
+        return -1;
+    }
+
+    lseek(write_fd, 0, SEEK_SET);
+    write(write_fd, &normalboot, 4);
+
+    close(write_fd);
+
+    syslog(LOG_INFO, "Recovery Service done, start rebooting to normal system!\n");
+    system("reboot 0");
+
+    return 0;
 }
