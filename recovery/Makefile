@@ -29,8 +29,13 @@ ifeq ($(CONFIG_LIB_LZMA),y)
 CSRCS += decode.c
 endif
 
+ifeq ($(CONFIG_LIB_MBEDTLS),y)
+CSRCS += verify.c
+endif
+
 MAINSRC = recovery.c
 
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/C}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/include}
 
 include $(APPDIR)/Application.mk
