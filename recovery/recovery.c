@@ -54,13 +54,21 @@ int main(int argc, char* argv[])
 
     if ((f = fopen(argv[1], "rb")) == NULL) {
         syslog(LOG_ERR, "Could not open %s\n\n", argv[1]);
-        return -1;
+        ret = -1;
+        goto exit;
     }
 
     ret = fread(&header, 1, sizeof(header), f);
     if (ret != sizeof(header)) {
         syslog(LOG_INFO, "read header failed\n");
-        return -1;
+        ret = -1;
+        goto cleanup_file;
+    }
+
+    if (memcmp(header.magic, VELA_MAGIC, VELA_MAGIC_SIZE)) {
+        syslog(LOG_ERR, "ERROR: Invalid image magic\n");
+        ret = -1;
+        goto cleanup_file;
     }
 
     syslog(LOG_INFO, "vela header: magic %s, image size %d, signature size %d\n",
@@ -69,33 +77,36 @@ int main(int argc, char* argv[])
     image = malloc(header.image_size);
     if (!image) {
         syslog(LOG_INFO, "malloc failed\n");
-        return -1;
+        ret = -1;
+        goto cleanup_file;
     }
 
     ret = fread(image, 1, header.image_size, f);
     if (ret != header.image_size) {
         syslog(LOG_INFO, "read raw image failed\n");
-        goto exit;
+        ret = -1;
+        goto cleanup_image;
     }
 
     ret = fread(signature, 1, header.sign_size, f);
     if (ret != header.sign_size) {
         syslog(LOG_INFO, "read signature failed\n");
-        goto exit;
+        ret = -1;
+        goto cleanup_image;
     }
 
     ret = verify_vela_image(&header, image, signature);
     if (ret) {
         syslog(LOG_ERR, "Verify vela image failed\n");
-        goto exit;
     }
 
-exit:
+cleanup_image:
     free(image);
+cleanup_file:
     fclose(f);
 
     if (ret)
-        return ret;
+      goto exit;
 
 #endif
 
@@ -112,12 +123,14 @@ exit:
 
     if (InFile_Open(&inStream.file, argv[1]) != 0) {
         syslog(LOG_ERR, "Can not open input file %s\n", argv[1]);
-        return -1;
+        ret = -1;
+        goto exit;
     }
 
     if (OutFile_Open(&outStream.file, argv[2]) != 0) {
         syslog(LOG_ERR, "Can not open output file %s\n", argv[2]);
-        return -1;
+        ret = -1;
+        goto cleanup_infile;
     }
 
     ret = decode(&outStream.vt, &inStream.vt);
@@ -134,11 +147,15 @@ exit:
         else
             syslog(LOG_ERR, "Decode failed, unknown error\n");
 
-        return -1;
+        ret = -1;
     }
 
     File_Close(&outStream.file);
+cleanup_infile:
     File_Close(&inStream.file);
+
+    if (ret)
+      goto exit;
 
 #else
 
@@ -187,8 +204,9 @@ exit:
 
     /* Finally write the magic number for BES */
     if ((write_fd = open(APP_DEV, O_RDWR)) < 0) {
-        syslog(LOG_ERR, "open %s failed\n", APP_DEV);
-        return -1;
+        syslog(LOG_ERR, "open %s to write magic number failed\n", APP_DEV);
+        ret = -1;
+        goto exit;
     }
 
     lseek(write_fd, 0, SEEK_SET);
@@ -196,8 +214,13 @@ exit:
 
     close(write_fd);
 
-    syslog(LOG_INFO, "Recovery Service done, start rebooting to normal system!\n");
+exit:
+    if (ret)
+        syslog(LOG_ERR, "Recovery failed, rebooting to old normal system\n");
+    else
+        syslog(LOG_INFO, "Recovery succeeded, rebooting to new normal system!\n");
+
     system("reboot 0");
 
-    return 0;
+    return ret;
 }
