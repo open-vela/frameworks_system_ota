@@ -105,8 +105,14 @@ cleanup_image:
 cleanup_file:
     fclose(f);
 
-    if (ret)
-      goto exit;
+    if (ret) {
+        /* Remove image since image verified error */
+        syslog(LOG_INFO, "Remove %s since image incomplete\n", argv[1]);
+        if (unlink(argv[1]) == -1)
+            syslog(LOG_ERR, "Remove %s failed\n", argv[1]);
+
+        goto exit;
+    }
 
 #endif
 
@@ -217,8 +223,13 @@ cleanup_infile:
 exit:
     if (ret)
         syslog(LOG_ERR, "Recovery failed, rebooting to old normal system\n");
-    else
+    else {
         syslog(LOG_INFO, "Recovery succeeded, rebooting to new normal system!\n");
+
+        /* Remove image since recovery succeed */
+        if (unlink(argv[1]) == -1)
+            syslog(LOG_ERR, "Remove %s failed\n", argv[1]);
+    }
 
     system("reboot 0");
 
