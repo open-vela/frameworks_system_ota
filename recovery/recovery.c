@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -43,12 +44,15 @@ int main(int argc, char* argv[])
     int write_fd;
     int ret;
     int normalboot = NORMAL_BOOT;
+    struct stat sb;
 
     syslog(LOG_INFO, "Recovery Service start!\n");
 
 #ifdef CONFIG_LIB_MBEDTLS
     FILE* f;
     vela_img_hdr header;
+    char lzma_header[LZMA_PROPS_SIZE + 8];
+    int raw_image_size = 0;
     char* image;
     char signature[256];
 
@@ -65,8 +69,32 @@ int main(int argc, char* argv[])
         goto cleanup_file;
     }
 
+    /* Compare header magic */
     if (memcmp(header.magic, VELA_MAGIC, VELA_MAGIC_SIZE)) {
-        syslog(LOG_ERR, "ERROR: Invalid image magic\n");
+        syslog(LOG_ERR, "Invalid image magic\n");
+        ret = -1;
+        goto cleanup_file;
+    }
+
+    /* Compare uncompressed raw image size to app partition size */
+    if (stat(argv[2], &sb) == -1) {
+        syslog(LOG_ERR, "stat %s failed\n", argv[2]);
+        ret = -1;
+        goto cleanup_file;
+    }
+
+    ret = fread(lzma_header, 1, sizeof(lzma_header), f);
+    if (ret != sizeof(lzma_header)) {
+        syslog(LOG_INFO, "read lzma header failed\n");
+        ret = -1;
+        goto cleanup_file;
+    }
+
+    for (int i = 0; i < 8; i++)
+      raw_image_size += lzma_header[LZMA_PROPS_SIZE + i] << (i * 8);
+
+    if (raw_image_size > sb.st_size) {
+        syslog(LOG_ERR, "image size %ld larger than app parititon size %ld\n", raw_image_size, sb.st_size);
         ret = -1;
         goto cleanup_file;
     }
@@ -80,6 +108,8 @@ int main(int argc, char* argv[])
         ret = -1;
         goto cleanup_file;
     }
+
+    fseek(f, -sizeof(lzma_header), SEEK_CUR);
 
     ret = fread(image, 1, header.image_size, f);
     if (ret != header.image_size) {
