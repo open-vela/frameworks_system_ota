@@ -1,5 +1,5 @@
 ############################################################################
-# services/recovery/Makefile
+# frameworks/ota/recovery/Makefile
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -26,14 +26,14 @@ STACKSIZE = $(CONFIG_SERVICES_RECOVERY_STACKSIZE)
 MODULE    = $(CONFIG_SERVICES_RECOVERY)
 
 ifeq ($(CONFIG_LIB_LZMA),y)
-CSRCS += decode.c
+CSRCS += recovery/decode.c
 endif
 
 ifeq ($(CONFIG_LIB_MBEDTLS),y)
-CSRCS += verify.c
+CSRCS += recovery/verify.c
 endif
 
-MAINSRC = recovery.c
+MAINSRC = recovery/recovery.c
 
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/C}
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/include}
