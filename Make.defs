@@ -1,5 +1,5 @@
 ############################################################################
-# services/recovery/Make.defs
+# frameworks/ota/recovery/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -19,5 +19,5 @@
 ############################################################################
 
 ifneq ($(CONFIG_SERVICES_RECOVERY),)
-CONFIGURED_APPS += $(APPDIR)/services/recovery
+CONFIGURED_APPS += $(APPDIR)/frameworks/ota
 endif
