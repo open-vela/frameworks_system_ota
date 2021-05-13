@@ -18,6 +18,7 @@
  *
  ****************************************************************************/
 
+#include <syslog.h>
 #include "7zFile.h"
 #include "7zVersion.h"
 #include "Alloc.h"
@@ -35,6 +36,9 @@ static SRes decode2(CLzmaDec* state, ISeqOutStream* outStream, ISeqInStream* inS
     Byte inBuf[IN_BUF_SIZE];
     Byte outBuf[OUT_BUF_SIZE];
     size_t inPos = 0, inSize = 0, outPos = 0;
+    UInt64 totalSize = unpackSize;
+    int percent = 0, oldpercent = 0;
+
     LzmaDec_Init(state);
     for (;;) {
         if (inPos == inSize) {
@@ -62,6 +66,11 @@ static SRes decode2(CLzmaDec* state, ISeqOutStream* outStream, ISeqInStream* inS
             if (outStream)
                 if (outStream->Write(outStream, outBuf, outPos) != outPos)
                     return SZ_ERROR_WRITE;
+
+            percent = (int)(100.0f * (totalSize - unpackSize) / totalSize);
+            if (percent != oldpercent && percent % 10 == 0)
+                syslog(LOG_INFO, "%d%% flashed\n", percent);
+            oldpercent = percent;
 
             outPos = 0;
 
