@@ -169,6 +169,7 @@ cleanup_file:
         goto cleanup_infile;
     }
 
+    syslog(LOG_INFO, "Decompress and burn nuttx.bin\n");
     ret = decode(&outStream.vt, &inStream.vt);
     if (ret != SZ_OK) {
         syslog(LOG_ERR, "Decode failed\n");
@@ -183,8 +184,10 @@ cleanup_file:
         else
             syslog(LOG_ERR, "Decode failed, unknown error\n");
 
+        syslog(LOG_ERR, "Decompress and burn nuttx.bin failed\n");
         ret = -1;
-    }
+    } else
+        syslog(LOG_INFO, "Decompress and burn nuttx.bin succeeded\n");
 
     File_Close(&outStream.file);
 cleanup_infile:
