@@ -18,6 +18,7 @@
  *
  ****************************************************************************/
 
+#include <syslog.h>
 #include "mbedtls/md.h"
 #include "mbedtls/pk.h"
 
