@@ -18,6 +18,5 @@
 #
 ############################################################################
 
-ifneq ($(CONFIG_SERVICES_RECOVERY),)
 CONFIGURED_APPS += $(APPDIR)/frameworks/ota
-endif
+

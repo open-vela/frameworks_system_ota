@@ -20,6 +20,9 @@
 
 include $(APPDIR)/Make.defs
 
+
+ifneq ($(CONFIG_SERVICES_RECOVERY),)
+
 PROGNAME  = $(CONFIG_SERVICES_RECOVERY_PROGNAME)
 PRIORITY  = $(CONFIG_SERVICES_RECOVERY_PRIORITY)
 STACKSIZE = $(CONFIG_SERVICES_RECOVERY_STACKSIZE)
@@ -33,9 +36,24 @@ ifeq ($(CONFIG_LIB_MBEDTLS),y)
 CSRCS += recovery/verify.c
 endif
 
-MAINSRC = recovery/recovery.c
+MAINSRC += recovery/recovery.c
 
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/C}
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/include}
+
+endif
+
+ifneq ($(CONFIG_VELA_VERIFY),)
+
+PROGNAME = $(CONFIG_VELA_VERIFY_PROGNAME)
+PRIORITY = $(CONFIG_VELA_VERIFY_PRIORITY)
+STACKSIZE = $(CONFIG_VELA_VERIFY_STACKSIZE)
+MODULE = $(CONFIG_VELA_VERIFY)
+
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/contrib/minizip}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib}
+MAINSRC += tools/verify/verify.c
+
+endif
 
 include $(APPDIR)/Application.mk
