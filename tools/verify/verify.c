@@ -130,7 +130,7 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
     assert_res((fd = open(app_path, O_RDONLY)) > 0);
 
     // Get Central_ Directory start offset
-    off_t central_directory_offset_ptr = -comment_len - 4 - 2;
+    off_t central_directory_offset_ptr = -(off_t)comment_len - 4 - 2;
     lseek(fd, central_directory_offset_ptr, SEEK_END);
     assert_res(read(fd, &central_directory_offset, 4) > 0);
     app_block->central_directory_block.data = (uint8_t*)central_directory_offset;
