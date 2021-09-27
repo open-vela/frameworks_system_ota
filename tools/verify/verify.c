@@ -1,7 +1,27 @@
-#include "mbedtls/base64.h"
-#include "mbedtls/md.h"
-#include "mbedtls/pk.h"
-#include "unzip.h"
+/****************************************************************************
+ * frameworks/ota/tools/verify/verify.c
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ ****************************************************************************/
+
+#include <mbedtls/base64.h>
+#include <mbedtls/md.h>
+#include <mbedtls/pk.h>
+#include <unzip.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -12,7 +32,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define DIGESTED_CHUNK_MAX_SIZE 1024L * 1024L
+#define DIGESTED_CHUNK_MAX_SIZE (1024 * 1024)
 
 #define assert_res(x, ...)                                                          \
     do {                                                                            \
@@ -270,8 +290,7 @@ static int md_file_block(int fd, data_block_t* block, unsigned char* output)
 
 error:
     mbedtls_md_free(&ctx);
-
-    return (ret);
+    return ret;
 }
 
 static int md_rpk_block(mbedtls_md_context_t* rpk_ctx, int fd, data_block_t* block)
@@ -290,8 +309,8 @@ static int md_rpk_block(mbedtls_md_context_t* rpk_ctx, int fd, data_block_t* blo
             sub_chunk.length = lenght;
         }
 
-        assert_res( md_file_block(fd, &sub_chunk, md) == 0);
-        assert_res( mbedtls_md_update(rpk_ctx, md, sizeof(md)) == 0);
+        assert_res(md_file_block(fd, &sub_chunk, md) == 0);
+        assert_res(mbedtls_md_update(rpk_ctx, md, sizeof(md)) == 0);
     }
 
     return 0;
@@ -407,7 +426,7 @@ error:
 /**
  * @brief app Signature verification
  */
-static int app_verification(const char* app_path, size_t comment_len)
+static int app_verification(const char* app_path, const char* cert_path, size_t comment_len)
 {
     int res = -1, fd = -1;
     uint64_t id;
@@ -441,7 +460,7 @@ static int app_verification(const char* app_path, size_t comment_len)
     //  Compare whether the app summary is consistent with the signature block summary
     assert_res(app_block_digest_verification(app_path, app_block, &signature_info.one_digest) == 0);
 
-    res = certificate_verify(&signature_info, CONFIG_VELA_VERIFY_CERTIFICATE_PATH);
+    res = certificate_verify(&signature_info, cert_path);
 error:
 
     free(signature_block_data);
@@ -449,7 +468,7 @@ error:
     return res;
 }
 
-static int verify(const char* app_path)
+static int verify(const char* app_path, const char *cert_path)
 {
     unzFile zFile;
     unz_global_info64 zGlobalInfo;
@@ -463,28 +482,34 @@ static int verify(const char* app_path)
     assert_res(unzClose(zFile) == UNZ_OK);
 
     // Verify app legitimacy
-    res = app_verification(app_path, zGlobalInfo.size_comment);
+    res = app_verification(app_path, cert_path, zGlobalInfo.size_comment);
     assert_res(res == 0);
 
 error:
     return res;
 }
 
-int main(int argc, FAR char* argv[])
+int main(int argc, char* argv[])
 {
     int res = 0;
     const char* file;
+    const char* cert;
 
-    if (argc != 2) {
+    if (argc != 3) {
         printf("verify: missing required argument\n");
-        printf("Usage: verify [file]\n\n");
+        printf("Usage: verify <file> <cert>\n");
         return -EINVAL;
     }
 
     file = argv[1];
     res = access(file, F_OK);
     assert_res((0 == res), "File not found");
-    res = verify(file);
+
+    cert = argv[2];
+    res = access(cert, F_OK);
+    assert_res((0 == res), "Cert not found");
+
+    res = verify(file, cert);
     assert_res((0 == res), "File verify failed");
 
 error:
