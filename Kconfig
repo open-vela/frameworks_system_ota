@@ -56,12 +56,5 @@ config VELA_VERIFY_PRIORITY
 	default 100
 	---help---
 		The priority to use the upgrade package verify task.  Default: 100
-
-config VELA_VERIFY_CERTIFICATE_PATH
-	string "certificate path"
-	default "/data/certificate.der"
-	---help---
-		The priority to use the upgrade package verify task.  Default: 100
-
 endif
 
