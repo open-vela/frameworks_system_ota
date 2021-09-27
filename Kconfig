@@ -28,33 +28,32 @@ config SERVICES_RECOVERY_STACKSIZE
 
 endif
 
-config VELA_VERIFY
-	tristate "vela OTA image verify"
+config OTA_VERIFY
+	tristate "OTA image verify"
 	default n
 	select LIB_MBEDTLS
 	select LIB_ZLIB
 	---help---
 		This option will enable a upgrade package verify.
 
-if VELA_VERIFY
+if OTA_VERIFY
 
-config VELA_VERIFY_PROGNAME
+config OTA_VERIFY_PROGNAME
 	string "Program name"
 	default "verify"
 	---help---
 		This is the name of the program that will be used when the NSH ELF
 		program is installed.
 
-config VELA_VERIFY_STACKSIZE
+config OTA_VERIFY_STACKSIZE
 	int "Upgrade package verify stack size"
 	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The stack size to use the upgrade package verify task.  Default: 2048
 
-config VELA_VERIFY_PRIORITY
+config OTA_VERIFY_PRIORITY
 	int "upgrade package verify priority"
 	default 100
 	---help---
 		The priority to use the upgrade package verify task.  Default: 100
 endif
-
