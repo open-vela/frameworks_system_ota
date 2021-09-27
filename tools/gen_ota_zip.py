@@ -39,16 +39,21 @@ if __name__=="__main__":
     new0.write(data)
     new0.close()
 
-    os.system("./bsdiff old0 new0 patch.bin")
-
+    ret = os.system("./bsdiff old0 new0 patch.bin")
+    if (ret != 0) :
+        print("bidiff error")
+        exit(ret)
     print_file_size("patch.bin")
 
-    os.system("zip -j -1 %s \
+    ret = os.system("zip -j -1 %s \
             ../../../vendor/bes/boards/best1600_ep/src/etc/ota.sh patch.bin" % (sys.argv[3]))
-
-    os.system("apksigner sign --key keys/key.pk8 --cert keys/certificate_x509.pem\
+    if (ret != 0) :
+        print("zip ota.zip error")
+        exit(ret)
+    ret = os.system("apksigner sign --key keys/key.pk8 --cert keys/certificate_x509.pem\
                  --min-sdk-version 0 %s" % (sys.argv[3]))
-
+    if (ret != 0) :
+        print("apksigner error")
+        exit(ret)
     print("ota.zip signature success")
     print_file_size(sys.argv[3])
-    compressrate(sys.argv[2], sys.argv[3])
