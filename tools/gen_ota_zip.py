@@ -50,7 +50,7 @@ if __name__=="__main__":
     if (ret != 0) :
         print("zip ota.zip error")
         exit(ret)
-    ret = os.system("apksigner sign --key keys/key.pk8 --cert keys/certificate_x509.pem\
+    ret = os.system("./apksigner.jar sign --key keys/key.pk8 --cert keys/certificate_x509.pem\
                  --min-sdk-version 0 %s" % (sys.argv[3]))
     if (ret != 0) :
         print("apksigner error")
