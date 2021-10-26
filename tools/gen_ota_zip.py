@@ -1,59 +1,267 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # coding: utf-8
-import sys
 import os
-def help():
-    print("./gen_ota_zip oldfile newfile ota.zip")
+import argparse
+import tempfile
+import math
 
-def print_file_size(path):
-    stats = os.stat(path);
-    print("%s size: %d byte" % (path,float(stats.st_size) ))
+program_description = \
+'''
+This program is used to genrate a ota.zip
 
-def compressrate(newfilepath,otapath):
-      newfile_stas = os.stat(newfilepath)
-      otapath_stats =  os.stat(otapath)
-      rate = float(otapath_stats.st_size) / float(newfile_stas.st_size)
+you should make sure you have java environment to run apksigner
 
-      print("ota.zip divide newfile is %.2f%%" % (rate * 100))
+<1> If you want generate a diff ota.zip
+    you should use < old bin path > and < new bin path > path to sava bin file
+    then use \'./gen_ota_zip.py < old bin path > < new bin path >\' to genrate a ota.zip
+    and ota.sh
 
-if __name__=="__main__":
+<2>If you want generate a full ota.zip
+    you should use < bin path > file to sava bin file
+    then use \'./gen_ota_zip.py < bin path >\' to genrate a ota.zip
+    and ota.sh
 
-    if (len(sys.argv) < 3):
-        help()
-        exit()
-    print_file_size(sys.argv[1])
-    print_file_size(sys.argv[2])
-    old = open(sys.argv[1], 'rb')
-    old_stats = os.stat(sys.argv[1])
-    new = open(sys.argv[2], 'rb')
-    new_stats  = os.stat(sys.argv[2])
+<3> you can use --output to specify file generation location
 
-    old0 = open("old0", 'wb')
-    data = old.read(old_stats.st_size - 4)
-    old0.write(data)
-    old0.close()
+<4> 
+    the bin name format must be vela_<xxx>.bin
+    and in borad must use mtd device named /dev/<xxx>
+'''
 
-    new0 = open("new0", 'wb')
-    data = new.read(new_stats.st_size - 4)
-    new0.write(data)
-    new0.close()
+bin_path_help = \
+'''
+<1> if you input one path,will genrate a full ota.zip
+<2> if you input two path,will genrate a diff ota.zip
+'''
 
-    ret = os.system("./bsdiff old0 new0 patch.bin")
-    if (ret != 0) :
-        print("bidiff error")
-        exit(ret)
-    print_file_size("patch.bin")
+patch_path = []
+bin_list = []
 
-    ret = os.system("zip -j -1 %s \
-            ../../../vendor/bes/boards/best1600_ep/src/etc/ota.sh patch.bin" % (sys.argv[3]))
-    if (ret != 0) :
-        print("zip ota.zip error")
-        exit(ret)
-    ret = os.system("./apksigner.jar sign --key keys/key.pk8 --cert keys/certificate_x509.pem\
-                 --min-sdk-version 0 %s" % (sys.argv[3]))
+def get_file_size(path):
+    stats = os.stat(path)
+    return stats.st_size
+
+def adjust_size(path, file,tmp_folder):
+    os.system("cp %s/%s %s/%s/%s" % (path, file, tmp_folder, path, file))
+    fd = open("%s/%s/%s" % (tmp_folder, path, file), 'ab+')
+    old_stats = os.stat("%s/%s/%s" % (tmp_folder, path, file))
+    fd.truncate(old_stats.st_size - 4)
+    fd.close()
+
+def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
+
+    bin_list_cnt = len(bin_list)
+    fd = open('%s/ota.sh' % (tmp_folder), 'w')
+
+    i = 0
+    patch_size_list = []
+    while i < bin_list_cnt:
+        patch_size_list.append(get_file_size('%s/patch/%spatch' % (tmp_folder, bin_list[i][:-3])))
+        i += 1
+    ota_progress = 30.0
+    str = \
+'''set +e
+if [ ! -e /data/ota_tmp/%s ]
+then
+''' % (bin_list[bin_list_cnt - 1])
+    fd.write(str)
+
+    i = 0
+    while i < bin_list_cnt:
+        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * 30
+        str = \
+'''
+    echo "genrate %s"
+    time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch"
+    if [ $? -ne 0 ]
+    then
+        echo "bspatch %stmp failed"
+        exit
+    fi
+
+    mv /data/ota_tmp/%stmp /data/ota_tmp/%s
+    if [ $? -ne 0 ]
+    then
+        echo "rename %s failed"
+        exit
+    fi
+
+    setprop ota.progress %d
+''' % (bin_list[i], patch_path[i], bin_list[i][:-3],
+       bin_list[i][:-3], bin_list[i][:-3],bin_list[i][:-3],
+       bin_list[i], bin_list[i],round(ota_progress))
+        fd.write(str)
+        i += 1
+
+    bin_size_list = []
+    i = 0
+    while i < bin_list_cnt:
+        bin_size_list.append(get_file_size('%s/%s/%s' % (tmp_folder, args.bin_path[1],
+                                                         bin_list[i])))
+        i += 1
+
+    str = \
+'''
+fi
+'''
+    fd.write(str)
+    i = 0
+    while i < bin_list_cnt:
+        ota_progress += float((bin_size_list[i] / sum(bin_size_list))) * 40
+        str = \
+'''
+echo "install %s"
+time "cat /data/ota_tmp/%s > %s"
+if [ $? -ne 0 ]
+then
+    echo "cat %s failed"
+    reboot 1
+fi
+setprop ota.progress %d
+'''% (bin_list[i], bin_list[i], patch_path[i], bin_list[i], round(ota_progress))
+        fd.write(str)
+        i += 1
+
+    fd.close()
+
+def gen_diff_ota(args):
+    tmp_folder = tempfile.TemporaryDirectory()
+    os.makedirs("%s/%s" % (tmp_folder.name,args.bin_path[0]),exist_ok = True)
+    os.makedirs("%s/%s" % (tmp_folder.name,args.bin_path[1]),exist_ok = True)
+    os.makedirs("%s/patch" % (tmp_folder.name), exist_ok = True)
+
+    for old_files in os.walk("%s" % (args.bin_path[0])):
+        old_cnt = len(old_files[2])
+        i = 0
+        while i < old_cnt:
+            adjust_size('%s' % (args.bin_path[0]), old_files[2][i], tmp_folder.name)
+            i += 1
+
+    for new_files in os.walk("%s" % (args.bin_path[1])):
+        new_cnt = len(new_files[2])
+        i = 0
+        while i < new_cnt:
+            adjust_size("%s" % (args.bin_path[1]), new_files[2][i], tmp_folder.name)
+            i += 1
+
+    for i in range(old_cnt):
+        for j in range(new_cnt):
+            if old_files[2][i] == new_files[2][j]:
+                print(old_files[2][i])
+                oldfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], old_files[2][i])
+                newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[1], new_files[2][j])
+                patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
+                print(patchfile)
+                ret = os.system("./bsdiff %s %s %s" % (oldfile, newfile, patchfile))
+                if (ret != 0):
+                    print("bsdiff error")
+                    exit(ret)
+                os.system("zip -j -1 %s %s" % (args.output, patchfile))
+                patch_path.append('/dev/' + old_files[2][i][5:-4])
+                bin_list.append(old_files[2][i])
+
+    gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
+    os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
+
+    ret = os.system("java -jar apksigner.jar sign --key %s --cert %s\
+                 --min-sdk-version 0 %s" % (args.key, args.cert, args.output))
     if (ret != 0) :
         print("apksigner error")
         exit(ret)
     print("ota.zip signature success")
-    print_file_size(sys.argv[3])
+
+def gen_full_sh(path_list, bin_list, args, tmp_folder):
+    path_cnt = len(path_list)
+    fd = open('%s/ota.sh' % (tmp_folder),'w')
+
+    i = 0
+    bin_size_list = []
+    while i < path_cnt:
+        bin_size_list.append(get_file_size('%s/%s/%s' % (tmp_folder, args.bin_path[0],
+                                                         bin_list[i])))
+        i += 1
+
+    str = \
+'''set +e
+'''
+    fd.write(str)
+
+    ota_progress = 30.0
+    i = 0
+    while i < path_cnt:
+        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * 70
+        str =\
+'''
+echo "install %s"
+time " cat /data/ota_tmp/%s > %s "
+if [ $? -ne 0 ]
+then
+    echo "cat %s failed"
+    reboot 1
+fi
+setprop ota.progress %d
+''' % (bin_list[i], bin_list[i], path_list[i], bin_list[i], round(ota_progress))
+        fd.write(str)
+        i += 1
+
+    fd.close()
+
+def gen_full_ota(args):
+    tmp_folder = tempfile.TemporaryDirectory()
+    os.makedirs("%s/%s" % (tmp_folder.name, args.bin_path[0]), exist_ok = True)
+
+    for new_files in os.walk("%s" % (args.bin_path[0])):
+        new_cnt = len(new_files[2])
+        i = 0
+        while i < new_cnt:
+            adjust_size("%s" % (args.bin_path[0]), new_files[2][i], tmp_folder.name)
+            i += 1
+
+    for i in range(new_cnt):
+        newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], new_files[2][i])
+        os.system("zip -j -1 %s %s" % (args.output, newfile))
+        patch_path.append('/dev/' + new_files[2][i][5:-4])
+        bin_list.append(new_files[2][i])
+
+    gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
+
+    os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
+
+    ret = os.system("java -jar apksigner.jar sign --key %s --cert %s\
+                 --min-sdk-version 0 %s" % (args.key, args.cert, args.output))
+    if (ret != 0) :
+        print("apksigner error")
+        exit(ret)
+    print("ota.zip signature success")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=program_description,\
+                                    formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('-k','--key',\
+                        help='Private key path,The private key is in pk8 format',\
+                        default='keys/key.pk8')
+
+    parser.add_argument('-c','--cert',\
+                        help='cert path,The private key is in x509.pem format ',\
+                        default='keys/certificate_x509.pem')
+
+    parser.add_argument('--output',\
+                        help='output filepath',\
+                        default='ota.zip')
+
+    parser.add_argument('bin_path',\
+                        help=bin_path_help,
+                        nargs='*')
+
+    args = parser.parse_args()
+
+    os.system('rm %s' % (args.output))
+
+    if len((args.bin_path)) == 2:
+        gen_diff_ota(args)
+    elif len(args.bin_path) == 1:
+        gen_full_ota(args)
+    else:
+        parser.print_help()
