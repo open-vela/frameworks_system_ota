@@ -147,7 +147,9 @@ def gen_diff_ota(args):
 
     for i in range(old_cnt):
         for j in range(new_cnt):
-            if old_files[2][i] == new_files[2][j]:
+            if old_files[2][i] == new_files[2][j] and \
+               old_files[2][i][0:5] == 'vela_' and \
+               old_files[2][i][-4:] == '.bin':
                 print(old_files[2][i])
                 oldfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], old_files[2][i])
                 newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[1], new_files[2][j])
@@ -219,10 +221,11 @@ def gen_full_ota(args):
             i += 1
 
     for i in range(new_cnt):
-        newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], new_files[2][i])
-        os.system("zip -j -1 %s %s" % (args.output, newfile))
-        patch_path.append('/dev/' + new_files[2][i][5:-4])
-        bin_list.append(new_files[2][i])
+        if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
+            newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], new_files[2][i])
+            os.system("zip -j -1 %s %s" % (args.output, newfile))
+            patch_path.append('/dev/' + new_files[2][i][5:-4])
+            bin_list.append(new_files[2][i])
 
     gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
 
@@ -257,7 +260,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    os.system('rm %s' % (args.output))
+    if os.path.exists(args.output):
+        os.system("rm %s" % (args.output))
 
     if len((args.bin_path)) == 2:
         gen_diff_ota(args)
