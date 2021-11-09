@@ -132,21 +132,28 @@ def gen_diff_ota(args):
     os.makedirs("%s/patch" % (tmp_folder.name), exist_ok = True)
 
     for old_files in os.walk("%s" % (args.bin_path[0])):
-        old_cnt = len(old_files[2])
         i = 0
-        while i < old_cnt:
+        while i < len(old_files[2]):
             adjust_size('%s' % (args.bin_path[0]), old_files[2][i], tmp_folder.name)
             i += 1
+    if 'vela_ota.bin' in old_files[2]:
+        old_files[2].remove('vela_ota.bin')
 
     for new_files in os.walk("%s" % (args.bin_path[1])):
-        new_cnt = len(new_files[2])
         i = 0
-        while i < new_cnt:
+        while i < len(new_files[2]):
             adjust_size("%s" % (args.bin_path[1]), new_files[2][i], tmp_folder.name)
             i += 1
 
-    for i in range(old_cnt):
-        for j in range(new_cnt):
+    if 'vela_ota.bin' in new_files[2]:
+        new_files[2].remove('vela_ota.bin')
+
+    if len(old_files[2]) == 0 or len(new_files[2]) == 0:
+        print("No file in the path")
+        exit(-1)
+
+    for i in range(len(old_files[2])):
+        for j in range(len(new_files[2])):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin':
@@ -214,13 +221,18 @@ def gen_full_ota(args):
     os.makedirs("%s/%s" % (tmp_folder.name, args.bin_path[0]), exist_ok = True)
 
     for new_files in os.walk("%s" % (args.bin_path[0])):
-        new_cnt = len(new_files[2])
         i = 0
-        while i < new_cnt:
+        while i < len(new_files[2]):
             adjust_size("%s" % (args.bin_path[0]), new_files[2][i], tmp_folder.name)
             i += 1
+    if 'vela_ota.bin' in new_files[2]:
+        new_files[2].remove('vela_ota.bin')
 
-    for i in range(new_cnt):
+    if len(new_files[2]) == 0:
+        print("No file in the path")
+        exit(-1)
+
+    for i in range(len(new_files[2])):
         if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
             newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], new_files[2][i])
             os.system("zip -j -1 %s %s" % (args.output, newfile))
