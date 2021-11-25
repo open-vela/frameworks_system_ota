@@ -101,6 +101,9 @@ then
                                                          bin_list[i])))
         i += 1
 
+    if args.newpartition:
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],args.newpartition)))
+
     str = \
 '''
 fi
@@ -122,6 +125,22 @@ setprop ota.progress %d
 '''% (bin_list[i], bin_list[i], patch_path[i], bin_list[i], round(ota_progress))
         fd.write(str)
         i += 1
+
+    if args.newpartition:
+        ota_progress += float((bin_size_list[-1] / sum(bin_size_list))) * 40
+        str = \
+'''
+echo "install %s"
+time "cat /data/ota_tmp/%s > %s"
+if [ $? -ne 0 ]
+then
+    echo "cat %s failed"
+    reboot 1
+fi
+setprop ota.progress %d
+''' %(args.newpartition, args.newpartition,'/dev/' + args.newpartition[5:-4],
+      args.newpartition, round(ota_progress))
+        fd.write(str)
 
     fd.close()
 
@@ -152,6 +171,15 @@ def gen_diff_ota(args):
         print("No file in the path")
         exit(-1)
 
+    if args.newpartition:
+        if args.newpartition not in new_files[2]:
+            print("pelse check you new path and new partion name")
+            exit(-1)
+        if args.newpartition[0:5] != 'vela_' or \
+           args.newpartition[-4:] != '.bin':
+            print('please cheak new partion name')
+            exit(-1)
+
     for i in range(len(old_files[2])):
         for j in range(len(new_files[2])):
             if old_files[2][i] == new_files[2][j] and \
@@ -169,6 +197,9 @@ def gen_diff_ota(args):
                 os.system("zip -j -1 %s %s" % (args.output, patchfile))
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
                 bin_list.append(old_files[2][i])
+
+    if args.newpartition:
+        os.system("zip -j -1 %s %s/%s" % (args.output, args.bin_path[1],args.newpartition))
 
     gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
     os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
@@ -265,6 +296,9 @@ if __name__ == "__main__":
     parser.add_argument('--output',\
                         help='output filepath',\
                         default='ota.zip')
+
+    parser.add_argument('--newpartition',\
+                        help='newpartition')
 
     parser.add_argument('bin_path',\
                         help=bin_path_help,
