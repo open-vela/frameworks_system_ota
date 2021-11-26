@@ -42,13 +42,6 @@ def get_file_size(path):
     stats = os.stat(path)
     return stats.st_size
 
-def adjust_size(path, file,tmp_folder):
-    os.system("cp %s/%s %s/%s/%s" % (path, file, tmp_folder, path, file))
-    fd = open("%s/%s/%s" % (tmp_folder, path, file), 'ab+')
-    old_stats = os.stat("%s/%s/%s" % (tmp_folder, path, file))
-    fd.truncate(old_stats.st_size - 4)
-    fd.close()
-
 def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
 
     bin_list_cnt = len(bin_list)
@@ -97,7 +90,7 @@ then
     bin_size_list = []
     i = 0
     while i < bin_list_cnt:
-        bin_size_list.append(get_file_size('%s/%s/%s' % (tmp_folder, args.bin_path[1],
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],
                                                          bin_list[i])))
         i += 1
 
@@ -146,23 +139,14 @@ setprop ota.progress %d
 
 def gen_diff_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
-    os.makedirs("%s/%s" % (tmp_folder.name,args.bin_path[0]),exist_ok = True)
-    os.makedirs("%s/%s" % (tmp_folder.name,args.bin_path[1]),exist_ok = True)
     os.makedirs("%s/patch" % (tmp_folder.name), exist_ok = True)
 
-    for old_files in os.walk("%s" % (args.bin_path[0])):
-        i = 0
-        while i < len(old_files[2]):
-            adjust_size('%s' % (args.bin_path[0]), old_files[2][i], tmp_folder.name)
-            i += 1
+    for old_files in os.walk("%s" % (args.bin_path[0])):pass
+
+    for new_files in os.walk("%s" % (args.bin_path[1])):pass
+
     if 'vela_ota.bin' in old_files[2]:
         old_files[2].remove('vela_ota.bin')
-
-    for new_files in os.walk("%s" % (args.bin_path[1])):
-        i = 0
-        while i < len(new_files[2]):
-            adjust_size("%s" % (args.bin_path[1]), new_files[2][i], tmp_folder.name)
-            i += 1
 
     if 'vela_ota.bin' in new_files[2]:
         new_files[2].remove('vela_ota.bin')
@@ -186,8 +170,8 @@ def gen_diff_ota(args):
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin':
                 print(old_files[2][i])
-                oldfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], old_files[2][i])
-                newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[1], new_files[2][j])
+                oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
+                newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 print(patchfile)
                 ret = os.system("./bsdiff %s %s %s" % (oldfile, newfile, patchfile))
@@ -218,7 +202,7 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
     i = 0
     bin_size_list = []
     while i < path_cnt:
-        bin_size_list.append(get_file_size('%s/%s/%s' % (tmp_folder, args.bin_path[0],
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[0],
                                                          bin_list[i])))
         i += 1
 
@@ -249,13 +233,8 @@ setprop ota.progress %d
 
 def gen_full_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
-    os.makedirs("%s/%s" % (tmp_folder.name, args.bin_path[0]), exist_ok = True)
+    for new_files in os.walk("%s" % (args.bin_path[0])):pass
 
-    for new_files in os.walk("%s" % (args.bin_path[0])):
-        i = 0
-        while i < len(new_files[2]):
-            adjust_size("%s" % (args.bin_path[0]), new_files[2][i], tmp_folder.name)
-            i += 1
     if 'vela_ota.bin' in new_files[2]:
         new_files[2].remove('vela_ota.bin')
 
@@ -265,7 +244,7 @@ def gen_full_ota(args):
 
     for i in range(len(new_files[2])):
         if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
-            newfile = '%s/%s/%s' % (tmp_folder.name, args.bin_path[0], new_files[2][i])
+            newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
             os.system("zip -j -1 %s %s" % (args.output, newfile))
             patch_path.append('/dev/' + new_files[2][i][5:-4])
             bin_list.append(new_files[2][i])
