@@ -108,14 +108,14 @@ fi
         str = \
 '''
 echo "install %s"
-time "cat /data/ota_tmp/%s > %s"
+time "dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "cat %s failed"
+    echo "dd %s failed"
     reboot 1
 fi
 setprop ota.progress %d
-'''% (bin_list[i], bin_list[i], patch_path[i], bin_list[i], round(ota_progress))
+'''% (bin_list[i], bin_list[i], patch_path[i], args.bs, bin_list[i], round(ota_progress))
         fd.write(str)
         i += 1
 
@@ -124,15 +124,15 @@ setprop ota.progress %d
         str = \
 '''
 echo "install %s"
-time "cat /data/ota_tmp/%s > %s"
+time "dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "cat %s failed"
+    echo "dd %s failed"
     reboot 1
 fi
 setprop ota.progress %d
 ''' %(args.newpartition, args.newpartition,'/dev/' + args.newpartition[5:-4],
-      args.newpartition, round(ota_progress))
+      args.bs, args.newpartition, round(ota_progress))
         fd.write(str)
 
     fd.close()
@@ -218,14 +218,14 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
         str =\
 '''
 echo "install %s"
-time " cat /data/ota_tmp/%s > %s "
+time " dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "cat %s failed"
+    echo "dd %s failed"
     reboot 1
 fi
 setprop ota.progress %d
-''' % (bin_list[i], bin_list[i], path_list[i], bin_list[i], round(ota_progress))
+''' % (bin_list[i], bin_list[i], path_list[i], args.bs, bin_list[i], round(ota_progress))
         fd.write(str)
         i += 1
 
@@ -278,6 +278,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--newpartition',\
                         help='newpartition')
+
+    parser.add_argument('--bs',\
+                        help='ota dd command bs option',\
+                        default='32768')
 
     parser.add_argument('bin_path',\
                         help=bin_path_help,
