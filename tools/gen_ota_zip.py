@@ -52,17 +52,51 @@ def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
     while i < bin_list_cnt:
         patch_size_list.append(get_file_size('%s/patch/%spatch' % (tmp_folder, bin_list[i][:-3])))
         i += 1
+
+    i = 0
+    bin_size_list = []
+    while i < bin_list_cnt:
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],
+                                                         bin_list[i])))
+        i += 1
+
+    if args.newpartition:
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1], args.newpartition)))
+
     ota_progress = 30.0
+    ota_progress_list = []
+
+    i = 0
+    while i < bin_list_cnt:
+        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * 30
+        ota_progress_list.append(round(ota_progress))
+        i += 1
+
+    i = 0
+    while i < bin_list_cnt:
+        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * 40
+        ota_progress_list.append(round(ota_progress))
+        i += 1
+
+    if args.newpartition:
+        ota_progress += float(bin_size_list[bin_list_cnt + 1] / sum(bin_size_list)) * 40
+        ota_progress_list.append(round(ota_progress))
+
     str = \
 '''set +e
-if [ ! -e /data/ota_tmp/%s ]
+setprop ota.progress.current 30
+setprop ota.progress.next %d
+''' % (ota_progress_list[0])
+    fd.write(str)
+
+    str = \
+'''if [ ! -e /data/ota_tmp/%s ]
 then
 ''' % (bin_list[bin_list_cnt - 1])
     fd.write(str)
 
     i = 0
     while i < bin_list_cnt:
-        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * 30
         str = \
 '''
     echo "genrate %s"
@@ -80,22 +114,14 @@ then
         exit
     fi
 
-    setprop ota.progress %d
+    setprop ota.progress.current %d
+    setprop ota.progress.next %d
 ''' % (bin_list[i], patch_path[i], bin_list[i][:-3],
-       bin_list[i][:-3], bin_list[i][:-3],bin_list[i][:-3],
-       bin_list[i], bin_list[i],round(ota_progress))
+       bin_list[i][:-3], bin_list[i][:-3], bin_list[i][:-3],
+       bin_list[i], bin_list[i], ota_progress_list[i],
+       ota_progress_list[i + 1])
         fd.write(str)
         i += 1
-
-    bin_size_list = []
-    i = 0
-    while i < bin_list_cnt:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],
-                                                         bin_list[i])))
-        i += 1
-
-    if args.newpartition:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],args.newpartition)))
 
     str = \
 '''
@@ -104,7 +130,6 @@ fi
     fd.write(str)
     i = 0
     while i < bin_list_cnt:
-        ota_progress += float((bin_size_list[i] / sum(bin_size_list))) * 40
         str = \
 '''
 echo "install %s"
@@ -114,13 +139,15 @@ then
     echo "dd %s failed"
     reboot 1
 fi
-setprop ota.progress %d
-'''% (bin_list[i], bin_list[i], patch_path[i], args.bs, bin_list[i], round(ota_progress))
+setprop ota.progress.current %d
+'''% (bin_list[i], bin_list[i], patch_path[i], args.bs, bin_list[i], ota_progress_list[bin_list_cnt + i])
+
+        if i + 1 < bin_list_cnt or args.newpartition:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
         fd.write(str)
         i += 1
 
     if args.newpartition:
-        ota_progress += float((bin_size_list[-1] / sum(bin_size_list))) * 40
         str = \
 '''
 echo "install %s"
@@ -130,9 +157,9 @@ then
     echo "dd %s failed"
     reboot 1
 fi
-setprop ota.progress %d
+setprop ota.progress.current %d
 ''' %(args.newpartition, args.newpartition,'/dev/' + args.newpartition[5:-4],
-      args.bs, args.newpartition, round(ota_progress))
+      args.bs, args.newpartition, ota_progress_list[2 * bin_list_cnt + 1])
         fd.write(str)
 
     fd.close()
@@ -200,21 +227,30 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
     fd = open('%s/ota.sh' % (tmp_folder),'w')
 
     i = 0
-    bin_size_list = []
+    size_list = []
     while i < path_cnt:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[0],
+        size_list.append(get_file_size('%s/%s' % (args.bin_path[0],
                                                          bin_list[i])))
+        i += 1
+
+    ota_progress = 30.0
+    ota_progress_list = []
+
+    i = 0
+    while i < path_cnt:
+        ota_progress += float(size_list[i] / sum(size_list)) * 70
+        ota_progress_list.append(round(ota_progress))
         i += 1
 
     str = \
 '''set +e
-'''
+setprop ota.progress.current 30
+setprop ota.progress.next %d
+''' % (ota_progress_list[0])
     fd.write(str)
 
-    ota_progress = 30.0
     i = 0
     while i < path_cnt:
-        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * 70
         str =\
 '''
 echo "install %s"
@@ -224,8 +260,10 @@ then
     echo "dd %s failed"
     reboot 1
 fi
-setprop ota.progress %d
-''' % (bin_list[i], bin_list[i], path_list[i], args.bs, bin_list[i], round(ota_progress))
+setprop ota.progress.current %d
+''' % (bin_list[i], bin_list[i], path_list[i], args.bs, bin_list[i], ota_progress_list[i])
+        if i + 1 < path_cnt:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
         i += 1
 
