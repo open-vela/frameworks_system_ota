@@ -155,7 +155,7 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
     lseek(fd, central_directory_offset_ptr, SEEK_END);
     res = read(fd, &central_directory_offset, 4);
     assert_res(res > 0);
-    app_block->central_directory_block.data = (uint8_t*)central_directory_offset;
+    app_block->central_directory_block.data = (uint8_t*)(uintptr_t)central_directory_offset;
 
     // format check
     lseek(fd, central_directory_offset - 16, SEEK_SET);
@@ -172,21 +172,21 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
     app_block->signature_block.length = signature_block_length + 8;
 
     // Read signature block
-    app_block->signature_block.data = (uint8_t*)(central_directory_offset - app_block->signature_block.length);
+    app_block->signature_block.data = (uint8_t*)(uintptr_t)(central_directory_offset - app_block->signature_block.length);
 
     // Read EOCD
     off_t ecod_start_offset = central_directory_offset_ptr - 16;
     lseek(fd, ecod_start_offset, SEEK_END);
     app_block->eocd_block.length = -1 * ecod_start_offset;
     ecod_start_offset = lseek(fd, 0, SEEK_CUR);
-    app_block->eocd_block.data = (uint8_t*)ecod_start_offset;
+    app_block->eocd_block.data = (uint8_t*)(uintptr_t)ecod_start_offset;
 
     // Read central directory
     app_block->central_directory_block.length = ecod_start_offset - central_directory_offset;
 
     // Read zip content data block
     app_block->data_block.data = 0;
-    app_block->data_block.length = (off_t)app_block->signature_block.data;
+    app_block->data_block.length = (uintptr_t)app_block->signature_block.data;
 
     close(fd);
     return app_block;
@@ -285,7 +285,7 @@ static int md_file_block(int fd, data_block_t* block, unsigned char* output)
     assert_res(res == 0);
     res = mbedtls_md_update(&ctx, (const unsigned char*)&block->length, sizeof(uint32_t));
     assert_res(res == 0);
-    lseek(fd, (off_t)block->data, SEEK_SET);
+    lseek(fd, (uintptr_t)block->data, SEEK_SET);
 
     while (sum < block->length) {
         size_t read_len = (block->length - sum) % sizeof(buf);
@@ -379,7 +379,7 @@ static int app_block_digest_verification(const char* path, app_block_t* app_bloc
     prefix = 0xa5;
     buff = malloc(app_block->eocd_block.length);
     mbedtls_md_starts(&block_ctx);
-    lseek(fd, (off_t)app_block->eocd_block.data, SEEK_SET);
+    lseek(fd, (uintptr_t)app_block->eocd_block.data, SEEK_SET);
     read(fd, buff, app_block->eocd_block.length);
     memcpy(buff + 16, &app_block->data_block.length, sizeof(uint32_t));
     mbedtls_md_update(&block_ctx, (const unsigned char*)&prefix, 1);
@@ -455,6 +455,7 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
     uint64_t id;
     uint8_t* offset;
     app_block_t* app_block = NULL;
+    char* signature_block_data = NULL;
     data_block_t signature_data;
     signature_block_t signature_info;
 
@@ -463,11 +464,11 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
     assert_res(app_block != NULL);
 
     // parse Signing Block
-    char* signature_block_data = malloc(app_block->signature_block.length);
+    signature_block_data = malloc(app_block->signature_block.length);
     res = -1;
     fd = open(app_path, O_RDONLY);
     assert_res(fd > 0);
-    lseek(fd, (off_t)app_block->signature_block.data, SEEK_SET);
+    lseek(fd, (uintptr_t)app_block->signature_block.data, SEEK_SET);
     read(fd, signature_block_data, app_block->signature_block.length);
 
     parse_kv_block((uint8_t*)(signature_block_data + 8), &id, &offset);
