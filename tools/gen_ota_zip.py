@@ -4,6 +4,7 @@
 import os
 import argparse
 import tempfile
+import sys
 import math
 
 program_description = \
@@ -326,6 +327,7 @@ if __name__ == "__main__":
                         nargs='*')
 
     args = parser.parse_args()
+    os.chdir(os.path.abspath(os.path.dirname(sys.argv[0])))
 
     if os.path.exists(args.output):
         os.system("rm %s" % (args.output))
