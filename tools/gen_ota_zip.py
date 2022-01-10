@@ -25,8 +25,7 @@ you should make sure you have java environment to run apksigner
 
 <3> you can use --output to specify file generation location
 
-<4> 
-    the bin name format must be vela_<xxx>.bin
+<4> the bin name format must be vela_<xxx>.bin
     and in borad must use mtd device named /dev/<xxx>
 '''
 
@@ -342,6 +341,10 @@ if __name__ == "__main__":
         os.system("rm %s" % (args.output))
 
     if len((args.bin_path)) == 2:
+        if not os.path.exists("bsdiff"):
+            os.system('make -C ../../../external/bsdiff/ -f Makefile.host')
+            os.system('cp ../../../external/bsdiff/bsdiff .')
+            os.system('make -C ../../../external/bsdiff/ -f Makefile.host clean')
         gen_diff_ota(args)
     elif len(args.bin_path) == 1:
         gen_full_ota(args)
