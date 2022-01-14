@@ -407,7 +407,6 @@ int certificate_verify(signature_block_t* certificate, const char* path)
 
     int fd = -1, res = -1;
     char* buff = NULL;
-    uint8_t* offset = NULL;
     struct stat st;
     data_block_t cert;
 
@@ -419,11 +418,8 @@ int certificate_verify(signature_block_t* certificate, const char* path)
 
     res = stat(path, &st);
     assert_res(res == 0);
+    cert = certificate->certificate;
 
-    offset = certificate->certificate.data;
-    offset = parse_block(offset, &cert);
-    offset = parse_block(offset, &cert);
-    offset = parse_block(cert.data, &cert);
     res = -1;
     assert_res(st.st_size == cert.length);
 
