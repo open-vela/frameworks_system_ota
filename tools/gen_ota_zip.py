@@ -216,11 +216,13 @@ def gen_diff_ota(args):
     gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
     os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
 
-    ret = os.system("java -jar apksigner.jar sign --key %s --cert %s\
-                 --min-sdk-version 0 %s" % (args.key, args.cert, args.output))
-    if (ret != 0) :
-        print("apksigner error")
-        exit(ret)
+    if args.sign == True:
+        ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
+                       %s sgin_%s" % ( args.cert, args.key, args.output, args.output))
+        if (ret != 0) :
+            print("sign error")
+            exit(ret)
+
     print("ota.zip signature success")
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
@@ -292,11 +294,13 @@ def gen_full_ota(args):
 
     os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
 
-    ret = os.system("java -jar apksigner.jar sign --key %s --cert %s\
-                 --min-sdk-version 0 %s" % (args.key, args.cert, args.output))
-    if (ret != 0) :
-        print("apksigner error")
-        exit(ret)
+    if args.sign == True:
+        ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
+                       %s sgin_%s" % ( args.cert, args.key, args.output, args.output))
+        if (ret != 0) :
+            print("sign error")
+            exit(ret)
+
     print("ota.zip signature success")
 
 if __name__ == "__main__":
@@ -310,6 +314,11 @@ if __name__ == "__main__":
     parser.add_argument('-c','--cert',\
                         help='cert path,The private key is in x509.pem format ',\
                         default='keys/certificate_x509.pem')
+
+    parser.add_argument('--sign',\
+                        help='sign ota.zip and be named sign_ota.zip',
+                        action='store_true',
+                        default=False)
 
     parser.add_argument('--output',\
                         help='output filepath',\
