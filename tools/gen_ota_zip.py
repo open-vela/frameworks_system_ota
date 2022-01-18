@@ -216,13 +216,16 @@ def gen_diff_ota(args):
     os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
 
     if args.sign == True:
+        n = args.output.rfind('/')
+        sign_output = args.output
+        if n > 0:
+            sign_output = args.output[0:n+1] + 'sgin_' + args.output[n+1:]
         ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
-                       %s sgin_%s" % ( args.cert, args.key, args.output, args.output))
+                       %s %s" % ( args.cert, args.key, args.output, sign_output))
         if (ret != 0) :
             print("sign error")
             exit(ret)
-
-    print("ota.zip signature success")
+        print("%s,signature success" % sign_output)
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
     path_cnt = len(path_list)
@@ -294,13 +297,16 @@ def gen_full_ota(args):
     os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
 
     if args.sign == True:
+        n = args.output.rfind('/')
+        sign_output = args.output
+        if n > 0:
+            sign_output = args.output[0:n+1] + 'sgin_' + args.output[n+1:]
         ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
-                       %s sgin_%s" % ( args.cert, args.key, args.output, args.output))
+                       %s %s" % ( args.cert, args.key, args.output, sign_output))
         if (ret != 0) :
             print("sign error")
             exit(ret)
-
-    print("ota.zip signature success")
+        print("%s,signature success" % sign_output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=program_description,\
