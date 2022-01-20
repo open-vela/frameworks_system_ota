@@ -217,9 +217,10 @@ def gen_diff_ota(args):
 
     if args.sign == True:
         n = args.output.rfind('/')
-        sign_output = args.output
         if n > 0:
-            sign_output = args.output[0:n+1] + 'sgin_' + args.output[n+1:]
+            sign_output = args.output[0:n+1] + 'sign_' + args.output[n+1:]
+        else:
+            sign_output = 'sign_' + args.output
         ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
                        %s %s" % ( args.cert, args.key, args.output, sign_output))
         if (ret != 0) :
@@ -298,9 +299,10 @@ def gen_full_ota(args):
 
     if args.sign == True:
         n = args.output.rfind('/')
-        sign_output = args.output
         if n > 0:
-            sign_output = args.output[0:n+1] + 'sgin_' + args.output[n+1:]
+            sign_output = args.output[0:n+1] + 'sign_' + args.output[n+1:]
+        else:
+            sign_output = 'sign_' + args.output
         ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
                        %s %s" % ( args.cert, args.key, args.output, sign_output))
         if (ret != 0) :
