@@ -104,6 +104,7 @@ then
     if [ $? -ne 0 ]
     then
         echo "bspatch %stmp failed"
+        setprop ota.progress.current -1
         exit
     fi
 
@@ -111,6 +112,7 @@ then
     if [ $? -ne 0 ]
     then
         echo "rename %s failed"
+        setprop ota.progress.current -1
         exit
     fi
 
