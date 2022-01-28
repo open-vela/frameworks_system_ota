@@ -102,7 +102,7 @@ then
         str = \
 '''
     echo "genrate %s"
-    time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch"
+    time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch %s"
     if [ $? -ne 0 ]
     then
         echo "bspatch %stmp failed"
@@ -121,7 +121,7 @@ then
     setprop ota.progress.current %d
     setprop ota.progress.next %d
 ''' % (bin_list[i], patch_path[i], bin_list[i][:-3],
-       bin_list[i][:-3], bin_list[i][:-3], bin_list[i][:-3],
+       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], bin_list[i][:-3],
        bin_list[i], bin_list[i], ota_progress_list[i],
        ota_progress_list[i + 1])
         fd.write(str)
@@ -206,7 +206,8 @@ def gen_diff_ota(args):
                 newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 print(patchfile)
-                ret = os.system("%s/bsdiff %s %s %s" % (tools_path, oldfile, newfile, patchfile))
+                ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
+                                                           patchfile, args.patch_compress))
                 if (ret != 0):
                     print("bsdiff error")
                     exit(ret)
@@ -348,6 +349,11 @@ if __name__ == "__main__":
                         help='ota dd command bs option',\
                         default='32768')
 
+    parser.add_argument('--patch_compress',\
+                        help='choose how to compress the patch file. lz4,bz2 or don\'t compress',\
+                        choices=['lz4','bz2','none'],\
+                        default='lz4')
+
     parser.add_argument('bin_path',\
                         help=bin_path_help,
                         nargs='*')
@@ -355,6 +361,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     tools_path = os.path.abspath(os.path.dirname(sys.argv[0]))
     pwd_path = os.getcwd()
+
+    if args.patch_compress == 'none':
+        args.patch_compress = ' '
 
     if os.path.exists(args.output):
         inputstr = input("The %s already exists,will cover it? [Y/N]\n" % args.output)
