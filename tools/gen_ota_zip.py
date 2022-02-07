@@ -6,6 +6,7 @@ import argparse
 import tempfile
 import sys
 import math
+import zipfile
 
 program_description = \
 '''
@@ -193,6 +194,7 @@ def gen_diff_ota(args):
             print('please cheak new partion name')
             exit(-1)
 
+    ota_zip = zipfile.ZipFile('%s' % args.output, 'w')
     for i in range(len(old_files[2])):
         for j in range(len(new_files[2])):
             if old_files[2][i] == new_files[2][j] and \
@@ -207,15 +209,16 @@ def gen_diff_ota(args):
                 if (ret != 0):
                     print("bsdiff error")
                     exit(ret)
-                os.system("zip -j -1 %s %s" % (args.output, patchfile))
+                ota_zip.write(patchfile)
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
                 bin_list.append(old_files[2][i])
 
     if args.newpartition:
-        os.system("zip -j -1 %s %s/%s" % (args.output, args.bin_path[1],args.newpartition))
+        ota_zip.write("%s/%s" % (args.bin_path[1], args.newpartition))
 
     gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
-    os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
+    ota_zip.write("%s/ota.sh" % tmp_folder.name)
+    ota_zip.close()
 
     if args.sign == True:
         n = args.output.rfind('/')
@@ -288,16 +291,18 @@ def gen_full_ota(args):
         print("No file in the path")
         exit(-1)
 
+    ota_zip = zipfile.ZipFile('%s' % args.output, 'w')
     for i in range(len(new_files[2])):
         if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
             newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
-            os.system("zip -j -1 %s %s" % (args.output, newfile))
+            ota_zip.write(newfile)
             patch_path.append('/dev/' + new_files[2][i][5:-4])
             bin_list.append(new_files[2][i])
 
     gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
 
-    os.system("zip -j -1 %s %s/ota.sh" % (args.output, tmp_folder.name))
+    ota_zip.write("%s/ota.sh" % tmp_folder.name)
+    ota_zip.close()
 
     if args.sign == True:
         n = args.output.rfind('/')
@@ -348,7 +353,9 @@ if __name__ == "__main__":
     os.chdir(os.path.abspath(os.path.dirname(sys.argv[0])))
 
     if os.path.exists(args.output):
-        os.system("rm %s" % (args.output))
+        inputstr = input("The %s already exists,will cover it? [Y/N]\n" % args.output)
+        if inputstr != 'Y':
+            exit()
 
     if len((args.bin_path)) == 2:
         if not os.path.exists("bsdiff"):
