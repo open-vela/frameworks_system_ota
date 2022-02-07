@@ -194,7 +194,7 @@ def gen_diff_ota(args):
             print('please cheak new partion name')
             exit(-1)
 
-    ota_zip = zipfile.ZipFile('%s' % args.output, 'w')
+    ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(old_files[2])):
         for j in range(len(new_files[2])):
             if old_files[2][i] == new_files[2][j] and \
@@ -209,15 +209,15 @@ def gen_diff_ota(args):
                 if (ret != 0):
                     print("bsdiff error")
                     exit(ret)
-                ota_zip.write(patchfile)
+                ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
                 bin_list.append(old_files[2][i])
 
     if args.newpartition:
-        ota_zip.write("%s/%s" % (args.bin_path[1], args.newpartition))
+        ota_zip.write("%s/%s" % (args.bin_path[1], args.newpartition), args.newpartition)
 
     gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
-    ota_zip.write("%s/ota.sh" % tmp_folder.name)
+    ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
     ota_zip.close()
 
     if args.sign == True:
@@ -291,17 +291,17 @@ def gen_full_ota(args):
         print("No file in the path")
         exit(-1)
 
-    ota_zip = zipfile.ZipFile('%s' % args.output, 'w')
+    ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(new_files[2])):
         if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
             newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
-            ota_zip.write(newfile)
+            ota_zip.write(newfile, new_files[2][i])
             patch_path.append('/dev/' + new_files[2][i][5:-4])
             bin_list.append(new_files[2][i])
 
     gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
 
-    ota_zip.write("%s/ota.sh" % tmp_folder.name)
+    ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
     ota_zip.close()
 
     if args.sign == True:
