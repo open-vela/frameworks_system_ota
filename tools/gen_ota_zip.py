@@ -38,6 +38,7 @@ bin_path_help = \
 
 patch_path = []
 bin_list = []
+tools_path=''
 
 def get_file_size(path):
     stats = os.stat(path)
@@ -205,7 +206,7 @@ def gen_diff_ota(args):
                 newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 print(patchfile)
-                ret = os.system("./bsdiff %s %s %s" % (oldfile, newfile, patchfile))
+                ret = os.system("%s/bsdiff %s %s %s" % (tools_path, oldfile, newfile, patchfile))
                 if (ret != 0):
                     print("bsdiff error")
                     exit(ret)
@@ -226,8 +227,9 @@ def gen_diff_ota(args):
             sign_output = args.output[0:n+1] + 'sign_' + args.output[n+1:]
         else:
             sign_output = 'sign_' + args.output
-        ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
-                       %s %s" % ( args.cert, args.key, args.output, sign_output))
+        ret = os.system("java -jar %s/signapk.jar --min-sdk-version 0  %s/%s %s/%s\
+                       %s %s" % (tools_path, tools_path, args.cert,
+                                 tools_path, args.key, args.output, sign_output))
         if (ret != 0) :
             print("sign error")
             exit(ret)
@@ -310,8 +312,9 @@ def gen_full_ota(args):
             sign_output = args.output[0:n+1] + 'sign_' + args.output[n+1:]
         else:
             sign_output = 'sign_' + args.output
-        ret = os.system("java -jar signapk.jar --min-sdk-version 0  %s %s\
-                       %s %s" % ( args.cert, args.key, args.output, sign_output))
+        ret = os.system("java -jar %s/signapk.jar --min-sdk-version 0  %s/%s %s/%s\
+                       %s %s" % (tools_path, tools_path, args.cert,
+                                 tools_path, args.key, args.output, sign_output))
         if (ret != 0) :
             print("sign error")
             exit(ret)
@@ -350,7 +353,8 @@ if __name__ == "__main__":
                         nargs='*')
 
     args = parser.parse_args()
-    os.chdir(os.path.abspath(os.path.dirname(sys.argv[0])))
+    tools_path = os.path.abspath(os.path.dirname(sys.argv[0]))
+    pwd_path = os.getcwd()
 
     if os.path.exists(args.output):
         inputstr = input("The %s already exists,will cover it? [Y/N]\n" % args.output)
@@ -358,10 +362,12 @@ if __name__ == "__main__":
             exit()
 
     if len((args.bin_path)) == 2:
+        os.chdir(tools_path)
         if not os.path.exists("bsdiff"):
             os.system('make -C ../../../external/bsdiff/ -f Makefile.host')
             os.system('cp ../../../external/bsdiff/bsdiff .')
             os.system('make -C ../../../external/bsdiff/ -f Makefile.host clean')
+        os.chdir(pwd_path)
         gen_diff_ota(args)
     elif len(args.bin_path) == 1:
         gen_full_ota(args)
