@@ -44,7 +44,7 @@ def get_file_size(path):
     stats = os.stat(path)
     return stats.st_size
 
-def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
+def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
 
     bin_list_cnt = len(bin_list)
     fd = open('%s/ota.sh' % (tmp_folder), 'w')
@@ -62,8 +62,8 @@ def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
                                                          bin_list[i])))
         i += 1
 
-    if args.newpartition:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1], args.newpartition)))
+    for file in newpartition_list:
+        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1], file)))
 
     ota_progress = 30.0
     ota_progress_list = []
@@ -80,9 +80,11 @@ def gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder):
         ota_progress_list.append(round(ota_progress))
         i += 1
 
-    if args.newpartition:
-        ota_progress += float(bin_size_list[bin_list_cnt + 1] / sum(bin_size_list)) * 40
+    j = 0
+    while j < len(newpartition_list):
+        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * 40
         ota_progress_list.append(round(ota_progress))
+        j += 1
 
     str = \
 '''set +e
@@ -146,12 +148,13 @@ fi
 setprop ota.progress.current %d
 '''% (bin_list[i], bin_list[i], patch_path[i], args.bs, bin_list[i], ota_progress_list[bin_list_cnt + i])
 
-        if i + 1 < bin_list_cnt or args.newpartition:
+        if i + 1 < bin_list_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
         fd.write(str)
         i += 1
 
-    if args.newpartition:
+    i = 0
+    for file in newpartition_list:
         str = \
 '''
 echo "install %s"
@@ -162,8 +165,12 @@ then
     reboot 1
 fi
 setprop ota.progress.current %d
-''' %(args.newpartition, args.newpartition,'/dev/' + args.newpartition[5:-4],
-      args.bs, args.newpartition, ota_progress_list[2 * bin_list_cnt + 1])
+''' %(file, file,'/dev/' + file[5:-4],
+      args.bs, file, ota_progress_list[2 * bin_list_cnt + i])
+
+        if 2 * bin_list_cnt + i < len(ota_progress_list) - 1:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[2 * bin_list_cnt + i + 1])
+        i += 1
         fd.write(str)
 
     fd.close()
@@ -186,14 +193,12 @@ def gen_diff_ota(args):
         print("No file in the path")
         exit(-1)
 
+    newpartition_list = []
     if args.newpartition:
-        if args.newpartition not in new_files[2]:
-            print("pelse check you new path and new partion name")
-            exit(-1)
-        if args.newpartition[0:5] != 'vela_' or \
-           args.newpartition[-4:] != '.bin':
-            print('please cheak new partion name')
-            exit(-1)
+        newpartition_list = list(set(new_files[2]) - set(old_files[2]))
+        for file in newpartition_list:
+            if file[0:5] != 'vela_' or file[-4:] != '.bin':
+                newpartition_list.remove(file)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(old_files[2])):
@@ -215,10 +220,10 @@ def gen_diff_ota(args):
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
                 bin_list.append(old_files[2][i])
 
-    if args.newpartition:
-        ota_zip.write("%s/%s" % (args.bin_path[1], args.newpartition), args.newpartition)
+    for file in newpartition_list:
+        ota_zip.write("%s/%s" % (args.bin_path[1], file), file)
 
-    gen_diff_ota_sh(patch_path, bin_list, args, tmp_folder.name)
+    gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder.name)
     ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
     ota_zip.close()
 
@@ -343,7 +348,9 @@ if __name__ == "__main__":
                         default='ota.zip')
 
     parser.add_argument('--newpartition',\
-                        help='newpartition')
+                        help='newpartition',
+                        action='store_true',
+                        default=False)
 
     parser.add_argument('--bs',\
                         help='ota dd command bs option',\
