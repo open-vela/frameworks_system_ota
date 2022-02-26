@@ -7,6 +7,7 @@ import tempfile
 import sys
 import math
 import zipfile
+import logging
 
 program_description = \
 '''
@@ -39,6 +40,8 @@ bin_path_help = \
 patch_path = []
 bin_list = []
 tools_path=''
+logging.basicConfig(format = "[%(levelname)s]%(message)s")
+logger = logging.getLogger()
 
 def get_file_size(path):
     stats = os.stat(path)
@@ -190,7 +193,7 @@ def gen_diff_ota(args):
         new_files[2].remove('vela_ota.bin')
 
     if len(old_files[2]) == 0 or len(new_files[2]) == 0:
-        print("No file in the path")
+        logger.error("No file in the path")
         exit(-1)
 
     newpartition_list = []
@@ -206,21 +209,21 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin':
-                print(old_files[2][i])
                 oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
                 newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
-                print(patchfile)
+                logger.debug(patchfile)
                 ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
                                                            patchfile, args.patch_compress))
                 if (ret != 0):
-                    print("bsdiff error")
+                    logger.error("bsdiff error")
                     exit(ret)
                 ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
                 bin_list.append(old_files[2][i])
 
     for file in newpartition_list:
+        logger.debug("add %s",file)
         ota_zip.write("%s/%s" % (args.bin_path[1], file), file)
 
     gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder.name)
@@ -237,9 +240,9 @@ def gen_diff_ota(args):
                        %s %s" % (tools_path, tools_path, args.cert,
                                  tools_path, args.key, args.output, sign_output))
         if (ret != 0) :
-            print("sign error")
+            logger.error("sign error")
             exit(ret)
-        print("%s,signature success" % sign_output)
+        logger.info("%s,signature success" % sign_output)
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
     path_cnt = len(path_list)
@@ -296,13 +299,14 @@ def gen_full_ota(args):
         new_files[2].remove('vela_ota.bin')
 
     if len(new_files[2]) == 0:
-        print("No file in the path")
+        logger.error("No file in the path")
         exit(-1)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(new_files[2])):
         if  new_files[2][i][0:5] == 'vela_' and new_files[2][i][-4:] == '.bin':
             newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
+            logger.debug("add %s" % newfile)
             ota_zip.write(newfile, new_files[2][i])
             patch_path.append('/dev/' + new_files[2][i][5:-4])
             bin_list.append(new_files[2][i])
@@ -322,9 +326,9 @@ def gen_full_ota(args):
                        %s %s" % (tools_path, tools_path, args.cert,
                                  tools_path, args.key, args.output, sign_output))
         if (ret != 0) :
-            print("sign error")
+            logger.error("sign error")
             exit(ret)
-        print("%s,signature success" % sign_output)
+        logger.info("%s,signature success" % sign_output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=program_description,\
@@ -365,7 +369,16 @@ if __name__ == "__main__":
                         help=bin_path_help,
                         nargs='*')
 
+    parser.add_argument("--debug", action="store_true",
+                        help="print debug log")
+
     args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
     tools_path = os.path.abspath(os.path.dirname(sys.argv[0]))
     pwd_path = os.getcwd()
 
