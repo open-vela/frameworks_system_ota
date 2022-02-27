@@ -106,11 +106,11 @@ then
     while i < bin_list_cnt:
         str = \
 '''
-    echo "genrate %s"
+    echo "genrate %s"%s
     time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch %s"
     if [ $? -ne 0 ]
     then
-        echo "bspatch %stmp failed"
+        echo "bspatch %stmp failed"%s
         setprop ota.progress.current -1
         exit
     fi
@@ -118,16 +118,16 @@ then
     mv /data/ota_tmp/%stmp /data/ota_tmp/%s
     if [ $? -ne 0 ]
     then
-        echo "rename %s failed"
+        echo "rename %s failed"%s
         setprop ota.progress.current -1
         exit
     fi
 
     setprop ota.progress.current %d
     setprop ota.progress.next %d
-''' % (bin_list[i], patch_path[i], bin_list[i][:-3],
-       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], bin_list[i][:-3],
-       bin_list[i], bin_list[i], ota_progress_list[i],
+''' % (bin_list[i], args.otalog, patch_path[i], bin_list[i][:-3],
+       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, bin_list[i][:-3],
+       bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
        ota_progress_list[i + 1])
         fd.write(str)
         i += 1
@@ -141,15 +141,15 @@ fi
     while i < bin_list_cnt:
         str = \
 '''
-echo "install %s"
+echo "install %s"%s
 time "dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "dd %s failed"
+    echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-'''% (bin_list[i], bin_list[i], patch_path[i], args.bs, bin_list[i], ota_progress_list[bin_list_cnt + i])
+'''% (bin_list[i], args.otalog, bin_list[i], patch_path[i], args.bs, bin_list[i], args.otalog, ota_progress_list[bin_list_cnt + i])
 
         if i + 1 < bin_list_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
@@ -160,16 +160,16 @@ setprop ota.progress.current %d
     for file in newpartition_list:
         str = \
 '''
-echo "install %s"
+echo "install %s"%s
 time "dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "dd %s failed"
+    echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' %(file, file,'/dev/' + file[5:-4],
-      args.bs, file, ota_progress_list[2 * bin_list_cnt + i])
+''' %(file, args.otalog, file,'/dev/' + file[5:-4],
+      args.bs, file, args.otalog, ota_progress_list[2 * bin_list_cnt + i])
 
         if 2 * bin_list_cnt + i < len(ota_progress_list) - 1:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[2 * bin_list_cnt + i + 1])
@@ -275,15 +275,15 @@ setprop ota.progress.next %d
     while i < path_cnt:
         str =\
 '''
-echo "install %s"
+echo "install %s"%s
 time " dd if=/data/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
-    echo "dd %s failed"
+    echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], bin_list[i], path_list[i], args.bs, bin_list[i], ota_progress_list[i])
+''' % (bin_list[i], args.otalog, bin_list[i], path_list[i], args.bs, args.otalog, bin_list[i], ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
@@ -372,12 +372,19 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true",
                         help="print debug log")
 
+    parser.add_argument("--otalog",
+                        help="save log /dev/log or a normal file",
+                        default='/dev/log')
+
     args = parser.parse_args()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
+
+    if args.otalog != '':
+        args.otalog = ' >> ' + args.otalog
 
     tools_path = os.path.abspath(os.path.dirname(sys.argv[0]))
     pwd_path = os.getcwd()
