@@ -151,7 +151,7 @@ fi
 setprop ota.progress.current %d
 '''% (bin_list[i], args.otalog, bin_list[i], patch_path[i], args.bs, bin_list[i], args.otalog, ota_progress_list[bin_list_cnt + i])
 
-        if i + 1 < bin_list_cnt:
+        if i + 1 < bin_list_cnt or args.newpartition:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
         fd.write(str)
         i += 1
