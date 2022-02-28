@@ -374,7 +374,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--otalog",
                         help="save log /dev/log or a normal file",
-                        default='/dev/log')
+                        default='')
 
     args = parser.parse_args()
 
