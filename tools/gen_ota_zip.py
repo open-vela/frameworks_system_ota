@@ -8,6 +8,7 @@ import sys
 import math
 import zipfile
 import logging
+import filecmp
 
 program_description = \
 '''
@@ -48,6 +49,10 @@ def get_file_size(path):
     return stats.st_size
 
 def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
+
+    if len(patch_path) == 0 or len(bin_list) == 0:
+        logger.error("patch_path or bin_list don't have any file")
+        exit(-1)
 
     bin_list_cnt = len(bin_list)
     fd = open('%s/ota.sh' % (tmp_folder), 'w')
@@ -206,11 +211,12 @@ def gen_diff_ota(args):
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(old_files[2])):
         for j in range(len(new_files[2])):
+            oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
+            newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
-               old_files[2][i][-4:] == '.bin':
-                oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
-                newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
+               old_files[2][i][-4:] == '.bin' and \
+               filecmp.cmp(oldfile, newfile) != True :
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
                 ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
