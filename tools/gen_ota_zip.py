@@ -79,21 +79,22 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
     i = 0
     while i < bin_list_cnt:
         ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * 30
-        ota_progress_list.append(round(ota_progress))
+        ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
     i = 0
     while i < bin_list_cnt:
         ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * 40
-        ota_progress_list.append(round(ota_progress))
+        ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
     j = 0
     while j < len(newpartition_list):
         ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * 40
-        ota_progress_list.append(round(ota_progress))
+        ota_progress_list.append(math.floor(ota_progress))
         j += 1
 
+    ota_progress_list[-1] = 100
     str = \
 '''set +e
 setprop ota.progress.current 30
@@ -109,6 +110,12 @@ then
 
     i = 0
     while i < bin_list_cnt:
+
+        if bin_list[i] in args.ab:
+            patch_tmp = patch_path[i] + '_b'
+        else:
+            patch_tmp = patch_path[i]
+
         str = \
 '''
     echo "genrate %s"%s
@@ -130,7 +137,7 @@ then
 
     setprop ota.progress.current %d
     setprop ota.progress.next %d
-''' % (bin_list[i], args.otalog, patch_path[i], bin_list[i][:-3],
+''' % (bin_list[i], args.otalog, patch_tmp, bin_list[i][:-3],
        bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, bin_list[i][:-3],
        bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
        ota_progress_list[i + 1])
@@ -191,11 +198,14 @@ def gen_diff_ota(args):
 
     for new_files in os.walk("%s" % (args.bin_path[1])):pass
 
-    if 'vela_ota.bin' in old_files[2]:
-        old_files[2].remove('vela_ota.bin')
-
-    if 'vela_ota.bin' in new_files[2]:
-        new_files[2].remove('vela_ota.bin')
+    if args.ab:
+        logger.debug(args.ab)
+        for ab_file in args.ab:
+            if ab_file not in old_files[2] or ab_file not in new_files[2]:
+                logger.error("%s not in %s or %s" % (ab_file, args.bin_path[0], args.bin_path[1]))
+                exit(-1)
+    else:
+        args.ab = []
 
     if len(old_files[2]) == 0 or len(new_files[2]) == 0:
         logger.error("No file in the path")
@@ -216,7 +226,7 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin' and \
-               filecmp.cmp(oldfile, newfile) != True :
+               (filecmp.cmp(oldfile, newfile) != True or old_files[2][i] in args.ab):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
                 ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
@@ -267,9 +277,10 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
     i = 0
     while i < path_cnt:
         ota_progress += float(size_list[i] / sum(size_list)) * 70
-        ota_progress_list.append(round(ota_progress))
+        ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
+    ota_progress_list[-1] = 100
     str = \
 '''set +e
 setprop ota.progress.current 30
@@ -300,13 +311,6 @@ setprop ota.progress.current %d
 def gen_full_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
     for new_files in os.walk("%s" % (args.bin_path[0])):pass
-
-    if 'vela_ota.bin' in new_files[2]:
-        new_files[2].remove('vela_ota.bin')
-
-    if len(new_files[2]) == 0:
-        logger.error("No file in the path")
-        exit(-1)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(new_files[2])):
@@ -381,6 +385,10 @@ if __name__ == "__main__":
     parser.add_argument("--otalog",
                         help="save log /dev/log or a normal file",
                         default='')
+
+    parser.add_argument("--ab",
+                        help="mark A/B in diff ota upgrade",
+                        nargs='*')
 
     args = parser.parse_args()
 
