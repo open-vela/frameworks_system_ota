@@ -198,12 +198,15 @@ def gen_diff_ota(args):
 
     for new_files in os.walk("%s" % (args.bin_path[1])):pass
 
+    ab_flag = False
     if args.ab:
         logger.debug(args.ab)
         for ab_file in args.ab:
             if ab_file not in old_files[2] or ab_file not in new_files[2]:
                 logger.error("%s not in %s or %s" % (ab_file, args.bin_path[0], args.bin_path[1]))
                 exit(-1)
+        if filecmp.cmp("%s/%s" % (args.bin_path[0], ab_file), "%s/%s" % (args.bin_path[1], ab_file)) != True:
+            ab_file = True
     else:
         args.ab = []
 
@@ -226,7 +229,7 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin' and \
-               (filecmp.cmp(oldfile, newfile) != True or old_files[2][i] in args.ab):
+               (filecmp.cmp(oldfile, newfile) != True or old_files[2][i] in args.ab and ab_file):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
                 ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
