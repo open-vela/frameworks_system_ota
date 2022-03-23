@@ -12,30 +12,30 @@ import filecmp
 
 program_description = \
 '''
-This program is used to genrate a ota.zip
+This program is used to generate a ota.zip
 
 you should make sure you have java environment to run apksigner
 
-<1> If you want generate a diff ota.zip
-    you should use < old bin path > and < new bin path > path to sava bin file
-    then use \'./gen_ota_zip.py < old bin path > < new bin path >\' to genrate a ota.zip
+<1> If you want to generate a diff ota.zip
+    you should use < old bin path > and < new bin path > path to save bin file
+    then use \'./gen_ota_zip.py < old bin path > < new bin path >\' to generate a ota.zip
     and ota.sh
 
-<2>If you want generate a full ota.zip
-    you should use < bin path > file to sava bin file
-    then use \'./gen_ota_zip.py < bin path >\' to genrate a ota.zip
+<2> If you want to generate a full ota.zip
+    you should use < bin path > file to save bin file
+    then use \'./gen_ota_zip.py < bin path >\' to generate a ota.zip
     and ota.sh
 
 <3> you can use --output to specify file generation location
 
 <4> the bin name format must be vela_<xxx>.bin
-    and in borad must use mtd device named /dev/<xxx>
+    and in board must use mtd device named /dev/<xxx>
 '''
 
 bin_path_help = \
 '''
-<1> if you input one path,will genrate a full ota.zip
-<2> if you input two path,will genrate a diff ota.zip
+<1> if you input one path,will generate a full ota.zip
+<2> if you input two path,will generate a diff ota.zip
 '''
 
 patch_path = []
@@ -118,7 +118,7 @@ then
 
         str = \
 '''
-    echo "genrate %s"%s
+    echo "generate %s"%s
     time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch %s"
     if [ $? -ne 0 ]
     then
