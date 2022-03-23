@@ -303,7 +303,7 @@ then
     reboot 1
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog, bin_list[i], path_list[i], args.bs, args.otalog, bin_list[i], ota_progress_list[i])
+''' % (bin_list[i], args.otalog, bin_list[i], path_list[i], args.bs, bin_list[i], args.otalog, ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
