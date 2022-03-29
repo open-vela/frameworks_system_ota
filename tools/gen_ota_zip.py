@@ -103,6 +103,18 @@ setprop ota.progress.next %d
     fd.write(str)
 
     str = \
+'''set version_current `getprop ota.version.current`
+if [ %d -lt $version_current ]
+then
+    echo "check version filled!"%s
+    setprop ota.progress.current -1
+    exit
+fi
+setprop ota.version.next %d
+''' % (args.version[0], args.otalog, args.version[0])
+    fd.write(str)
+
+    str = \
 '''if [ ! -e /data/ota_tmp/%s ]
 then
 ''' % (bin_list[bin_list_cnt - 1])
@@ -291,6 +303,18 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
+    str = \
+'''set version_current `getprop ota.version.current`
+if [ %d -lt $version_current ]
+then
+    echo "check version filled!"%s
+    setprop ota.progress.current -1
+    exit
+fi
+setprop ota.version.next %d
+''' % (args.version[0], args.otalog, args.version[0])
+    fd.write(str)
+
     i = 0
     while i < path_cnt:
         str =\
@@ -392,6 +416,12 @@ if __name__ == "__main__":
     parser.add_argument("--ab",
                         help="mark A/B in diff ota upgrade",
                         nargs='*')
+
+    parser.add_argument("--version",
+                        help="set a version number to prevent downgrade",
+                        nargs=1,
+                        type=int,
+                        default=0)
 
     args = parser.parse_args()
 
