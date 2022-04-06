@@ -421,7 +421,7 @@ if __name__ == "__main__":
                         help="set a version number to prevent downgrade",
                         nargs=1,
                         type=int,
-                        default=0)
+                        default=[0])
 
     args = parser.parse_args()
 
