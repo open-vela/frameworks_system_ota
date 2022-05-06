@@ -9,6 +9,8 @@ import math
 import zipfile
 import logging
 import filecmp
+import configparser
+import re
 
 program_description = \
 '''
@@ -41,12 +43,27 @@ bin_path_help = \
 patch_path = []
 bin_list = []
 tools_path=''
+speed_dict = {}
 logging.basicConfig(format = "[%(levelname)s]%(message)s")
 logger = logging.getLogger()
 
 def get_file_size(path):
     stats = os.stat(path)
     return stats.st_size
+
+def parse_speed_conf(args):
+    if args.speedconf:
+        conf = configparser.ConfigParser()
+        conf.read(args.speedconf)
+        sections = conf.sections()
+        for section in sections:
+            items = conf.items(section)
+            if (items[0][0] != 'speed' or items[1][0] != 'bin'):
+                logger.error("pelase check speed conf file format!")
+                exit()
+            tmp=re.findall("vela_[a-zA-Z0-9]+.bin",items[1][1])
+            for bin in tmp:
+                speed_dict[bin] = float(items[0][1])
 
 def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
 
@@ -60,18 +77,19 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
     i = 0
     patch_size_list = []
     while i < bin_list_cnt:
-        patch_size_list.append(get_file_size('%s/patch/%spatch' % (tmp_folder, bin_list[i][:-3])))
+        patch_size_list.append(speed_dict[bin_list[i]] *
+                               get_file_size('%s/patch/%spatch' % (tmp_folder, bin_list[i][:-3])))
         i += 1
 
     i = 0
     bin_size_list = []
     while i < bin_list_cnt:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1],
-                                                         bin_list[i])))
+        bin_size_list.append(speed_dict[bin_list[i]] *
+                             get_file_size('%s/%s' % (args.bin_path[1],bin_list[i])))
         i += 1
 
     for file in newpartition_list:
-        bin_size_list.append(get_file_size('%s/%s' % (args.bin_path[1], file)))
+        bin_size_list.append(speed_dict[file] * get_file_size('%s/%s' % (args.bin_path[1], file)))
 
     ota_progress = 30.0
     ota_progress_list = []
@@ -256,6 +274,11 @@ def gen_diff_ota(args):
     for file in newpartition_list:
         logger.debug("add %s",file)
         ota_zip.write("%s/%s" % (args.bin_path[1], file), file)
+        speed_dict[file] = 1.0
+
+    for file in bin_list:
+        speed_dict[file] = 1.0
+    parse_speed_conf(args)
 
     gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder.name)
     ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
@@ -282,8 +305,8 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
     i = 0
     size_list = []
     while i < path_cnt:
-        size_list.append(get_file_size('%s/%s' % (args.bin_path[0],
-                                                         bin_list[i])))
+        size_list.append(speed_dict[bin_list[i]] *
+                         get_file_size('%s/%s' % (args.bin_path[0], bin_list[i])))
         i += 1
 
     ota_progress = 30.0
@@ -348,6 +371,9 @@ def gen_full_ota(args):
             patch_path.append('/dev/' + new_files[2][i][5:-4])
             bin_list.append(new_files[2][i])
 
+    for file in bin_list:
+        speed_dict[file] = 1.0
+    parse_speed_conf(args)
     gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
 
     ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
@@ -422,6 +448,25 @@ if __name__ == "__main__":
                         nargs=1,
                         type=int,
                         default=[0])
+
+    parser.add_argument("--speedconf",
+                        help='''
+set speed conf file,this use to control different media progress inconsistencies
+conf file like:
+[xxx]
+speed=<a float num>
+bin=<...> (need like vela_<xxx>.bin, support many bins,use "," separated)
+example:
+[flash]
+speed=100.0
+bin=vela_ap.bin,vela_test.bin
+[sdcrad]
+speed=50.0
+bin=vela_app.bin,vela_muisc.bin
+
+support many [xxx] to set different speed
+if don't have speedconf all bin speed is 1,or not,
+will bin size will multiply speed then calculate progress''')
 
     args = parser.parse_args()
 
