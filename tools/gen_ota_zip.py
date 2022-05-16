@@ -338,6 +338,21 @@ setprop ota.version.next %d
 ''' % (args.version[0], args.otalog, args.version[0])
     fd.write(str)
 
+    # aviod /dev/<xxx> doesn't exist
+    i = 0
+    while i < path_cnt:
+        str = \
+'''
+if [ ! -e %s ]
+then
+    echo "%s doesn't exist, will reboot to the old system"%s
+    setprop ota.progress.current -1
+    exit
+fi
+''' % (path_list[i], path_list[i], args.otalog)
+        fd.write(str)
+        i += 1
+
     i = 0
     while i < path_cnt:
         str =\
