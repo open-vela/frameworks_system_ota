@@ -291,6 +291,7 @@ static int md_file_block(int fd, data_block_t* block, unsigned char* output)
         size_t read_len = (block->length - sum) % sizeof(buf);
         read_len = (read_len == 0) ? sizeof(buf) : read_len;
         n = read(fd, buf, read_len);
+        assert_res(n > 0);
         sum += n;
 
         res = mbedtls_md_update(&ctx, buf, n);
@@ -335,7 +336,7 @@ error:
 
 static int calc_chunk_count(data_block_t* block)
 {
-    return block->length / (DIGESTED_CHUNK_MAX_SIZE) + 1;
+    return (block->length + DIGESTED_CHUNK_MAX_SIZE - 1) / DIGESTED_CHUNK_MAX_SIZE;
 }
 
 /**
