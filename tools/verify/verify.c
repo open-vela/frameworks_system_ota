@@ -141,11 +141,13 @@ static uint8_t* parse_kv_block(uint8_t* data, uint64_t* key, uint8_t** value)
  */
 static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
 {
-    int fd, res = -1;
+    int fd = -1;
+    int res = -1;
     off_t central_directory_offset = 0;
     char magic_buf[16] = { 0 };
     const char* magic = "APK Sig Block 42";
     app_block_t* app_block = malloc(sizeof(app_block_t));
+    assert_res(app_block != NULL);
 
     fd = open(app_path, O_RDONLY);
     assert_res(fd > 0);
@@ -379,6 +381,7 @@ static int app_block_digest_verification(const char* path, app_block_t* app_bloc
     // Modify central directory offset
     prefix = 0xa5;
     buff = malloc(app_block->eocd_block.length);
+    assert_res(buff != NULL);
     mbedtls_md_starts(&block_ctx);
     lseek(fd, (uintptr_t)app_block->eocd_block.data, SEEK_SET);
     read(fd, buff, app_block->eocd_block.length);
@@ -462,6 +465,7 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
 
     // parse Signing Block
     signature_block_data = malloc(app_block->signature_block.length);
+    assert_res(signature_block_data != NULL);
     res = -1;
     fd = open(app_path, O_RDONLY);
     assert_res(fd > 0);
