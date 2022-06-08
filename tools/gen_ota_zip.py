@@ -133,9 +133,9 @@ setprop ota.version.next %d
     fd.write(str)
 
     str = \
-'''if [ ! -e /data/ota_tmp/%s ]
+'''if [ ! -e %s/ota_tmp/%s ]
 then
-''' % (bin_list[bin_list_cnt - 1])
+''' % (args.do_ota_path, bin_list[bin_list_cnt - 1])
     fd.write(str)
 
     i = 0
@@ -149,7 +149,7 @@ then
         str = \
 '''
     echo "generate %s"%s
-    time "bspatch %s /data/ota_tmp/%stmp /data/ota_tmp/%spatch %s"
+    time "bspatch %s %s/ota_tmp/%stmp %s/ota_tmp/%spatch %s"
     if [ $? -ne 0 ]
     then
         echo "bspatch %stmp failed"%s
@@ -157,7 +157,7 @@ then
         exit
     fi
 
-    mv /data/ota_tmp/%stmp /data/ota_tmp/%s
+    mv %s/ota_tmp/%stmp %s/ota_tmp/%s
     if [ $? -ne 0 ]
     then
         echo "rename %s failed"%s
@@ -167,9 +167,9 @@ then
 
     setprop ota.progress.current %d
     setprop ota.progress.next %d
-''' % (bin_list[i], args.otalog, patch_tmp, bin_list[i][:-3],
-       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, bin_list[i][:-3],
-       bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
+''' % (bin_list[i], args.otalog, patch_tmp, args.do_ota_path, bin_list[i][:-3], args.do_ota_path,
+       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, args.do_ota_path, bin_list[i][:-3],
+       args.do_ota_path, bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
        ota_progress_list[i + 1])
         fd.write(str)
         i += 1
@@ -184,14 +184,14 @@ fi
         str = \
 '''
 echo "install %s"%s
-time "dd if=/data/ota_tmp/%s of=%s bs=%s"
+time "dd if=%s/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-'''% (bin_list[i], args.otalog, bin_list[i], patch_path[i], args.bs, bin_list[i], args.otalog, ota_progress_list[bin_list_cnt + i])
+'''% (bin_list[i], args.otalog, args.do_ota_path, bin_list[i], patch_path[i], args.bs, bin_list[i], args.otalog, ota_progress_list[bin_list_cnt + i])
 
         if i + 1 < bin_list_cnt or args.newpartition:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
@@ -203,14 +203,14 @@ setprop ota.progress.current %d
         str = \
 '''
 echo "install %s"%s
-time "dd if=/data/ota_tmp/%s of=%s bs=%s"
+time "dd if=%s/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' %(file, args.otalog, file,'/dev/' + file[5:-4],
+''' %(file, args.otalog, args.do_ota_path, file,'/dev/' + file[5:-4],
       args.bs, file, args.otalog, ota_progress_list[2 * bin_list_cnt + i])
 
         if 2 * bin_list_cnt + i < len(ota_progress_list) - 1:
@@ -358,14 +358,14 @@ fi
         str =\
 '''
 echo "install %s"%s
-time " dd if=/data/ota_tmp/%s of=%s bs=%s"
+time " dd if=%s/ota_tmp/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog, bin_list[i], path_list[i], args.bs, bin_list[i], args.otalog, ota_progress_list[i])
+''' % (bin_list[i], args.otalog, args.do_ota_path, bin_list[i], path_list[i], args.bs, bin_list[i], args.otalog, ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
@@ -482,6 +482,10 @@ bin=vela_app.bin,vela_muisc.bin
 support many [xxx] to set different speed
 if don't have speedconf all bin speed is 1,or not,
 will bin size will multiply speed then calculate progress''')
+
+    parser.add_argument('--do_ota_path',\
+                        help='set do ota path in device',\
+                        default='/data')
 
     args = parser.parse_args()
 
