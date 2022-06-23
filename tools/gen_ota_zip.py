@@ -179,6 +179,13 @@ then
 fi
 '''
     fd.write(str)
+
+    str = \
+'''
+echo -e -n "a" > %s/ota_tmp/dd
+''' % (args.do_ota_path)
+    fd.write(str)
+
     i = 0
     while i < bin_list_cnt:
         str = \
@@ -352,6 +359,12 @@ fi
 ''' % (path_list[i], path_list[i], args.otalog)
         fd.write(str)
         i += 1
+
+    str = \
+'''
+echo -e -n "a" > %s/ota_tmp/dd
+''' % (args.do_ota_path)
+    fd.write(str)
 
     i = 0
     while i < path_cnt:
