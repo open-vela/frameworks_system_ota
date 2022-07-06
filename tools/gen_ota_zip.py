@@ -120,7 +120,12 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    str = \
+    if (args.skip_version_check) :
+        str = \
+'''setprop ota.version.next `getprop ota.version.current`
+'''
+    else :
+        str = \
 '''set version_current `getprop ota.version.current`
 if [ %d -lt $version_current ]
 then
@@ -130,6 +135,7 @@ then
 fi
 setprop ota.version.next %d
 ''' % (args.version[0], args.otalog, args.version[0])
+
     fd.write(str)
 
     str = \
@@ -333,7 +339,12 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    str = \
+    if (args.skip_version_check) :
+        str = \
+'''setprop ota.version.next `getprop ota.version.current`
+'''
+    else :
+        str = \
 '''set version_current `getprop ota.version.current`
 if [ %d -lt $version_current ]
 then
@@ -343,8 +354,8 @@ then
 fi
 setprop ota.version.next %d
 ''' % (args.version[0], args.otalog, args.version[0])
-    fd.write(str)
 
+    fd.write(str)
     # aviod /dev/<xxx> doesn't exist
     i = 0
     while i < path_cnt:
@@ -476,6 +487,11 @@ if __name__ == "__main__":
                         nargs=1,
                         type=int,
                         default=[0])
+
+    parser.add_argument('--skip_version_check',\
+                        help='skip version check,all version can update this ota.zip',
+                        action='store_true',
+                        default=False)
 
     parser.add_argument("--speedconf",
                         help='''
