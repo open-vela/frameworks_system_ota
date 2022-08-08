@@ -127,14 +127,17 @@ setprop ota.progress.next %d
     else :
         str = \
 '''set version_current `getprop ota.version.current`
+
+echo "new version is "%d
+
 if [ %d -lt $version_current ]
 then
-    echo "check version filled!"%s
+    echo "check version failed!"%s
     setprop ota.progress.current -1
     exit
 fi
 setprop ota.version.next %d
-''' % (args.version[0], args.otalog, args.version[0])
+''' % (args.version[0], args.version[0], args.otalog, args.version[0])
 
     fd.write(str)
 
@@ -346,14 +349,17 @@ setprop ota.progress.next %d
     else :
         str = \
 '''set version_current `getprop ota.version.current`
+
+echo "new version is "%d
+
 if [ %d -lt $version_current ]
 then
-    echo "check version filled!"%s
+    echo "check version failed!"%s
     setprop ota.progress.current -1
     exit
 fi
 setprop ota.version.next %d
-''' % (args.version[0], args.otalog, args.version[0])
+''' % (args.version[0], args.version[0], args.otalog, args.version[0])
 
     fd.write(str)
     # aviod /dev/<xxx> doesn't exist
