@@ -38,8 +38,8 @@ endif
 
 MAINSRC += recovery/recovery.c
 
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/C}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/include}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/lzma/C}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/mbedtls/include}
 
 endif
 
@@ -50,8 +50,8 @@ PRIORITY = $(CONFIG_OTA_VERIFY_PRIORITY)
 STACKSIZE = $(CONFIG_OTA_VERIFY_STACKSIZE)
 MODULE = $(CONFIG_OTA_VERIFY)
 
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/contrib/minizip}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib/contrib/minizip}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib}
 MAINSRC += tools/verify/verify.c
 
 endif
