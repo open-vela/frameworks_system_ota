@@ -142,7 +142,7 @@ setprop ota.version.next %d
     fd.write(str)
 
     str = \
-'''if [ ! -e %s/ota_tmp/%s ]
+'''if [ ! -e %s/%s ]
 then
 ''' % (args.do_ota_path, bin_list[bin_list_cnt - 1])
     fd.write(str)
@@ -158,7 +158,7 @@ then
         str = \
 '''
     echo "generate %s"%s
-    time "bspatch %s %s/ota_tmp/%stmp %s/ota_tmp/%spatch %s"
+    time "bspatch %s %s/%stmp %s/%spatch %s"
     if [ $? -ne 0 ]
     then
         echo "bspatch %stmp failed"%s
@@ -166,7 +166,7 @@ then
         exit
     fi
 
-    mv %s/ota_tmp/%stmp %s/ota_tmp/%s
+    mv %s/%stmp %s/%s
     if [ $? -ne 0 ]
     then
         echo "rename %s failed"%s
@@ -176,9 +176,9 @@ then
 
     setprop ota.progress.current %d
     setprop ota.progress.next %d
-''' % (bin_list[i], args.otalog, patch_tmp, args.do_ota_path, bin_list[i][:-3], args.do_ota_path,
-       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, args.do_ota_path, bin_list[i][:-3],
-       args.do_ota_path, bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
+''' % (bin_list[i], args.otalog, patch_tmp, args.do_ota_path, bin_list[i][:-3], args.do_ota_tmp,
+       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, args.do_ota_tmp, bin_list[i][:-3],
+       args.do_ota_tmp, bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
        ota_progress_list[i + 1])
         fd.write(str)
         i += 1
@@ -191,8 +191,8 @@ fi
 
     str = \
 '''
-echo -e -n "a" > %s/ota_tmp/dd
-''' % (args.do_ota_path)
+echo -e -n "a" > %s/dd
+''' % (args.do_ota_tmp)
     fd.write(str)
 
     i = 0
@@ -200,7 +200,7 @@ echo -e -n "a" > %s/ota_tmp/dd
         str = \
 '''
 echo "install %s"%s
-time "dd if=%s/ota_tmp/%s of=%s bs=%s"
+time "dd if=%s/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
@@ -219,7 +219,7 @@ setprop ota.progress.current %d
         str = \
 '''
 echo "install %s"%s
-time "dd if=%s/ota_tmp/%s of=%s bs=%s"
+time "dd if=%s/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
@@ -379,8 +379,8 @@ fi
 
     str = \
 '''
-echo -e -n "a" > %s/ota_tmp/dd
-''' % (args.do_ota_path)
+echo -e -n "a" > %s/dd
+''' % (args.do_ota_tmp)
     fd.write(str)
 
     i = 0
@@ -388,7 +388,7 @@ echo -e -n "a" > %s/ota_tmp/dd
         str =\
 '''
 echo "install %s"%s
-time " dd if=%s/ota_tmp/%s of=%s bs=%s"
+time " dd if=%s/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
@@ -519,8 +519,12 @@ if don't have speedconf all bin speed is 1,or not,
 will bin size will multiply speed then calculate progress''')
 
     parser.add_argument('--do_ota_path',\
-                        help='set do ota path in device',\
-                        default='/data')
+                        help='ota.zip unzip or mount path',\
+                        default='/data/ota_tmp')
+
+    parser.add_argument('--do_ota_tmp',\
+                        help='save ota tmpfile path',\
+                        default='/data/ota_tmp')
 
     args = parser.parse_args()
 
