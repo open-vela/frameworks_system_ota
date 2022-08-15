@@ -547,7 +547,7 @@ will bin size will multiply speed then calculate progress''')
         os.chdir(tools_path)
         if not os.path.exists("bsdiff"):
             os.system('make -C ../../../external/bsdiff/ -f Makefile.host')
-            os.system('cp ../../../external/bsdiff/bsdiff .')
+            os.system('cp ../../../external/bsdiff/bsdiff/bsdiff .')
             os.system('make -C ../../../external/bsdiff/ -f Makefile.host clean')
         os.chdir(pwd_path)
         gen_diff_ota(args)
