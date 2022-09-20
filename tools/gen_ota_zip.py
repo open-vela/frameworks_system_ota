@@ -92,27 +92,28 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
         bin_size_list.append(speed_dict[file] * get_file_size('%s/%s' % (args.bin_path[1], file)))
 
     ota_progress = 30.0
+    max_progress = 100 - args.user_end_script_progress
     ota_progress_list = []
 
     i = 0
     while i < bin_list_cnt:
-        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * 30
+        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * (max_progress - 30 - 40)
         ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
     i = 0
     while i < bin_list_cnt:
-        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * 40
+        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * (max_progress - 30 - 30)
         ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
     j = 0
     while j < len(newpartition_list):
-        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * 40
+        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - 30 - 30)
         ota_progress_list.append(math.floor(ota_progress))
         j += 1
 
-    ota_progress_list[-1] = 100
+    ota_progress_list[-1] = max_progress
     str = \
 '''set +e
 setprop ota.progress.current 30
@@ -234,6 +235,18 @@ setprop ota.progress.current %d
         i += 1
         fd.write(str)
 
+    if args.user_end_script:
+        user_end_script = open(args.user_end_script,"r")
+        str = "setprop ota.progress.next 100\n"
+        fd.write(str)
+        str = "echo \"run user script\"\n"
+        fd.write(str)
+        str = user_end_script.read()
+        fd.write(str + "\n")
+        user_end_script.close()
+        str = "setprop ota.progress.current 100\n"
+        fd.write(str)
+
     fd.close()
 
 def gen_diff_ota(args):
@@ -326,15 +339,16 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
         i += 1
 
     ota_progress = 30.0
+    max_progress = 100 - args.user_end_script_progress
     ota_progress_list = []
 
     i = 0
     while i < path_cnt:
-        ota_progress += float(size_list[i] / sum(size_list)) * 70
+        ota_progress += float(size_list[i] / sum(size_list)) * (max_progress - 30.0)
         ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
-    ota_progress_list[-1] = 100
+    ota_progress_list[-1] = max_progress
     str = \
 '''set +e
 setprop ota.progress.current 30
@@ -400,6 +414,18 @@ setprop ota.progress.current %d
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
         i += 1
+
+    if args.user_end_script:
+        user_end_script = open(args.user_end_script,"r")
+        str = "setprop ota.progress.next 100\n"
+        fd.write(str)
+        str = "echo \"run user script\"\n"
+        fd.write(str)
+        str = user_end_script.read()
+        fd.write(str + "\n")
+        user_end_script.close()
+        str = "setprop ota.progress.current 100\n"
+        fd.write(str)
 
     fd.close()
 
@@ -525,6 +551,15 @@ will bin size will multiply speed then calculate progress''')
     parser.add_argument('--do_ota_tmp',\
                         help='save ota tmpfile path',\
                         default='/data/ota_tmp')
+
+    parser.add_argument('--user_end_script',\
+                        help='the script run after ota is successful')
+
+    parser.add_argument('--user_end_script_progress',\
+                        help='user end script progress value,if use it,at least need to be greater than 1',
+                        type=int,
+                        default=0)
+
 
     args = parser.parse_args()
 
