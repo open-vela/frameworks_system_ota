@@ -20,29 +20,6 @@
 
 include $(APPDIR)/Make.defs
 
-
-ifneq ($(CONFIG_SERVICES_RECOVERY),)
-
-PROGNAME  = $(CONFIG_SERVICES_RECOVERY_PROGNAME)
-PRIORITY  = $(CONFIG_SERVICES_RECOVERY_PRIORITY)
-STACKSIZE = $(CONFIG_SERVICES_RECOVERY_STACKSIZE)
-MODULE    = $(CONFIG_SERVICES_RECOVERY)
-
-ifeq ($(CONFIG_LIB_LZMA),y)
-CSRCS += recovery/decode.c
-endif
-
-ifeq ($(CONFIG_LIB_MBEDTLS),y)
-CSRCS += recovery/verify.c
-endif
-
-MAINSRC += recovery/recovery.c
-
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/lzma/lzma/C}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/mbedtls/mbedtls/include}
-
-endif
-
 ifneq ($(CONFIG_OTA_VERIFY),)
 
 PROGNAME = $(CONFIG_OTA_VERIFY_PROGNAME)
@@ -52,7 +29,7 @@ MODULE = $(CONFIG_OTA_VERIFY)
 
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib/contrib/minizip}
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib}
-MAINSRC += tools/verify/verify.c
+MAINSRC += verify/verify.c
 
 endif
 
