@@ -6,7 +6,7 @@
 config OTA_VERIFY
 	tristate "OTA image verify"
 	default n
-	depends on LIB_MBEDTLS
+	depends on CRYPTO_MBEDTLS
 	depends on LIB_ZLIB
 	---help---
 		This option will enable a upgrade package verify.
