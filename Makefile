@@ -20,9 +20,7 @@
 
 include $(APPDIR)/Make.defs
 
-ifneq ($(CONFIG_ARCH_BOARD_CUSTOM_NAME),)
-  BIN := $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTOM_DIR)/libs/$(CONFIG_ARCH_BOARD_CUSTOM_NAME)/libframework.a
-endif
+BIN := libframework.a
 
 ifneq ($(CONFIG_OTA_VERIFY),)
 
@@ -36,8 +34,5 @@ CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib}
 MAINSRC += verify/verify.c
 
 endif
-
-distclean::
-	rm -rf $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTOM_DIR)/libs/$(CONFIG_ARCH_BOARD_CUSTOM_NAME)
 
 include $(APPDIR)/Application.mk
