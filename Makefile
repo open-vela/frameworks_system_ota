@@ -20,7 +20,7 @@
 
 include $(APPDIR)/Make.defs
 
-BIN := libframework.a
+BIN := $(APPDIR)/staging/libframework.a
 
 ifneq ($(CONFIG_OTA_VERIFY),)
 
