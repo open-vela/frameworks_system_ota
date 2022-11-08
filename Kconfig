@@ -3,6 +3,12 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
+config OTA_UI
+	bool "Enable OTA UI module"
+	default n
+	---help---
+		This option will display upgrade progress on panel.
+
 config OTA_VERIFY
 	tristate "OTA image verify"
 	default n

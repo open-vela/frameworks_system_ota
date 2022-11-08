@@ -1,0 +1,115 @@
+    {
+        "bg_color": "0xff000000",
+        "logo_page": {
+            "label": {
+                "area": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 480,
+                    "h": 480
+                },
+                "align": [
+                    "right",
+                    "top"
+                ],
+                "img_src": "/resource/recovery/anim49.bin"
+            }
+        },
+        "upgrading_page": {
+            "progress": {
+                "area": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "bottom"
+                ],
+                "mode": "number",
+                "percentage_src": "/resource/recovery/percentage_symbol.bin",
+                "img_src_list": {
+                    "0": "/resource/recovery/number_0.bin",
+                    "1": "/resource/recovery/number_1.bin",
+                    "2": "/resource/recovery/number_2.bin",
+                    "3": "/resource/recovery/number_3.bin",
+                    "4": "/resource/recovery/number_4.bin",
+                    "5": "/resource/recovery/number_5.bin",
+                    "6": "/resource/recovery/number_6.bin",
+                    "7": "/resource/recovery/number_7.bin",
+                    "8": "/resource/recovery/number_8.bin",
+                    "9": "/resource/recovery/number_9.bin"
+                }
+            },
+            "label": {
+                "area": {
+                    "x": 0,
+                    "y": 240,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "top"
+                ],
+                "img_src": "/resource/recovery/upgrading_en.bin"
+            }
+        },
+        "upgrade_fail_page": {
+            "label_fail": {
+                "area": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "bottom"
+                ],
+                "img_src": "/resource/recovery/fail.bin"
+            },
+            "label_fail_text": {
+                "area": {
+                    "x": 0,
+                    "y": 240,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "center"
+                ],
+                "img_src": "/resource/recovery/fail_text_main.bin"
+            }
+        },
+        "upgrade_success_page": {
+            "label_success": {
+                "area": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "bottom"
+                ],
+                "img_src": "/resource/recovery/success_text_main.bin"
+            },
+            "label_success_text": {
+                "area": {
+                    "x": 0,
+                    "y": 240,
+                    "w": 480,
+                    "h": 240
+                },
+                "align": [
+                    "center",
+                    "top"
+                ],
+                "img_src": "/resource/recovery/success_text_sub.bin"
+            }
+        }
+    }
