@@ -23,7 +23,6 @@ include $(APPDIR)/Make.defs
 BIN := $(APPDIR)/staging/libframework.a
 
 ifneq ($(CONFIG_OTA_VERIFY),)
-
 PROGNAME = $(CONFIG_OTA_VERIFY_PROGNAME)
 PRIORITY = $(CONFIG_OTA_VERIFY_PRIORITY)
 STACKSIZE = $(CONFIG_OTA_VERIFY_STACKSIZE)
@@ -35,4 +34,16 @@ MAINSRC += verify/verify.c
 
 endif
 
+ifneq ($(CONFIG_OTA_UI),)
+PROGNAME += otaUI
+PRIORITY += SCHED_PRIORITY_DEFAULT
+STACKSIZE += $(CONFIG_DEFAULT_TASK_STACKSIZE)
+MODULE = $(CONFIG_OTA_UI)
+CSRCS += ui/ui_config_parse.c
+MAINSRC += ui/ui_display.c
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/frameworks/kvdb}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/include/netutils}
+endif
+
 include $(APPDIR)/Application.mk
+
