@@ -42,7 +42,7 @@ MODULE = $(CONFIG_OTA_UI)
 CSRCS += ui/ui_config_parse.c
 MAINSRC += ui/ui_display.c
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/frameworks/kvdb}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/include/netutils}
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/netutils/cjson/cJSON}
 endif
 
 include $(APPDIR)/Application.mk
