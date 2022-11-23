@@ -24,12 +24,12 @@
 
 static void ota_page_config_destroy(ui_ota_page_t* ota_page);
 
-static int32_t string_2_id(const char* key, const string_map_t* map, int map_len)
+static int32_t string_2_id(const char* key, const string_map_t* map, int map_len, int default_val)
 {
-    int32_t i = 0, ret = -1;
+    int32_t i = 0, ret = default_val;
     const string_map_t* node = map;
     if (!key || !map)
-        return -1;
+        return ret;
 
     for (i = 0; i < map_len; i++) {
         if (strcmp(node->key_str, key) == 0) {
@@ -123,8 +123,8 @@ static int32_t json_align_parse(cJSON* node, ui_align_t* ui_align)
         return -1;
     }
 
-    ui_align->align_hor = string_2_id(hor_align->valuestring, hor_align_map, ARRAY_SIZE(hor_align_map));
-    ui_align->align_ver = string_2_id(ver_align->valuestring, ver_align_map, ARRAY_SIZE(ver_align_map));
+    ui_align->align_hor = string_2_id(hor_align->valuestring, hor_align_map, ARRAY_SIZE(hor_align_map),ALIGN_HOR_LEFT);
+    ui_align->align_ver = string_2_id(ver_align->valuestring, ver_align_map, ARRAY_SIZE(ver_align_map),ALIGN_VER_TOP);
 
     return 0;
 }
@@ -141,13 +141,13 @@ static int32_t json_ui_obj_parse(cJSON* jsonObj, ui_obj_t* ui_obj)
         return -1;
     }
 
+    /* align is an optional attr */
     align = cJSON_GetObjectItem(jsonObj, "align");
     if (json_align_parse(align, &(ui_obj->align)) < 0) {
-        UI_LOG_ERROR("parse align config error.\n");
-        return -1;
+        UI_LOG_INFO("no align information, use default align value.\n");
     }
 
-    /* offset is an option attr */
+    /* offset is an optional attr */
     offset = cJSON_GetObjectItem(jsonObj, "offset");
     if (json_offset_parse(offset, &(ui_obj->offset)) < 0) {
         UI_LOG_INFO("No offset information, ignore it.\n");
@@ -179,7 +179,12 @@ static int32_t json_progress_parse(cJSON* progress, ui_progress_t* ui_progress)
         UI_LOG_ERROR("parse progress mode config error.\n");
         return -1;
     }
-    ui_progress->mode = string_2_id(progress_mode->valuestring, progress_mode_map, ARRAY_SIZE(progress_mode_map));
+
+    ui_progress->mode = string_2_id(progress_mode->valuestring, progress_mode_map, ARRAY_SIZE(progress_mode_map),PROGRESS_MODE_INVALID);
+    if (ui_progress->mode == PROGRESS_MODE_INVALID) {
+        UI_LOG_ERROR("parse progress mode config error. val : %s\n",progress_mode->valuestring);
+        return -1;
+    }
 
     /* optional attr */
     percentage_img = cJSON_GetObjectItem(progress, "percentage_src");
