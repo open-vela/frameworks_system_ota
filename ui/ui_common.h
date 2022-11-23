@@ -69,7 +69,8 @@ typedef enum {
 
 typedef enum {
     PROGRESS_MODE_NUMBER = 0,
-    PROGRESS_MODE_BAR
+    PROGRESS_MODE_BAR,
+    PROGRESS_MODE_INVALID
 } ui_progress_mode_e;
 
 typedef enum {
