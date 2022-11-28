@@ -311,6 +311,26 @@ def gen_diff_ota(args):
 
     gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder.name)
     ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
+
+    if args.user_file:
+        for user_file in args.user_file:
+            if os.path.exists(user_file) == False:
+                logger.error("user file is not exist %s", user_file)
+                break
+
+            if os.path.isdir(user_file):
+                for root, dirs, files in os.walk(user_file):
+                    for file in files:
+                        filepath = os.path.join(root, file)
+                        logger.info("user file is %s add to ota.zip", filepath)
+                        ota_zip.write(filepath, filepath)
+                continue
+
+            if os.path.isfile(user_file):
+                logger.info("user file is %s add to ota.zip", user_file)
+                ota_zip.write(user_file, user_file)
+                continue
+
     ota_zip.close()
 
     if args.sign == True:
@@ -448,6 +468,26 @@ def gen_full_ota(args):
     gen_full_sh(patch_path, bin_list, args, tmp_folder.name)
 
     ota_zip.write("%s/ota.sh" % tmp_folder.name, "ota.sh")
+
+    if args.user_file:
+        for user_file in args.user_file:
+            if os.path.exists(user_file) == False:
+                logger.error("user file is not exist %s", user_file)
+                break
+
+            if os.path.isdir(user_file):
+                for root, dirs, files in os.walk(user_file):
+                    for file in files:
+                        filepath = os.path.join(root, file)
+                        logger.info("user file is %s add to ota.zip", filepath)
+                        ota_zip.write(filepath, filepath)
+                continue
+
+            if os.path.isfile(user_file):
+                logger.info("user file is %s add to ota.zip", user_file)
+                ota_zip.write(user_file, user_file)
+                continue
+
     ota_zip.close()
 
     if args.sign == True:
@@ -560,6 +600,9 @@ will bin size will multiply speed then calculate progress''')
                         type=int,
                         default=0)
 
+    parser.add_argument('--user_file',\
+                        help='user file add to ota.zip, this argumnet is a files or folders',\
+                        nargs='*')
 
     args = parser.parse_args()
 
