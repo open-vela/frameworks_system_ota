@@ -28,9 +28,9 @@ config OTA_VERIFY_PROGNAME
 
 config OTA_VERIFY_STACKSIZE
 	int "Upgrade package verify stack size"
-	default DEFAULT_TASK_STACKSIZE
+	default 4096
 	---help---
-		The stack size to use the upgrade package verify task.  Default: 2048
+		The stack size to use the upgrade package verify task.  Default: 4096
 
 config OTA_VERIFY_PRIORITY
 	int "upgrade package verify priority"
