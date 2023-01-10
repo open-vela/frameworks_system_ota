@@ -20,8 +20,6 @@
 
 include $(APPDIR)/Make.defs
 
-BIN := $(APPDIR)/staging/libframework.a
-
 ifneq ($(CONFIG_OTA_VERIFY),)
 PROGNAME = $(CONFIG_OTA_VERIFY_PROGNAME)
 PRIORITY = $(CONFIG_OTA_VERIFY_PRIORITY)
