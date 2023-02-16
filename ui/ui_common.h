@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 #ifndef _UI_COMMON_H_
 #define _UI_COMMON_H_
 

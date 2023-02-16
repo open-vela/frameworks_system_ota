@@ -123,8 +123,8 @@ static int32_t json_align_parse(cJSON* node, ui_align_t* ui_align)
         return -1;
     }
 
-    ui_align->align_hor = string_2_id(hor_align->valuestring, hor_align_map, ARRAY_SIZE(hor_align_map),ALIGN_HOR_LEFT);
-    ui_align->align_ver = string_2_id(ver_align->valuestring, ver_align_map, ARRAY_SIZE(ver_align_map),ALIGN_VER_TOP);
+    ui_align->align_hor = string_2_id(hor_align->valuestring, hor_align_map, ARRAY_SIZE(hor_align_map), ALIGN_HOR_LEFT);
+    ui_align->align_ver = string_2_id(ver_align->valuestring, ver_align_map, ARRAY_SIZE(ver_align_map), ALIGN_VER_TOP);
 
     return 0;
 }
@@ -158,7 +158,7 @@ static int32_t json_ui_obj_parse(cJSON* jsonObj, ui_obj_t* ui_obj)
 
 static int32_t json_progress_parse(cJSON* progress, ui_progress_t* ui_progress)
 {
-    int32_t i = 0;
+    int i = 0;
     cJSON* progress_img_src_map = NULL;
     cJSON* progress_mode = NULL;
     cJSON* percentage_img = NULL;
@@ -180,9 +180,9 @@ static int32_t json_progress_parse(cJSON* progress, ui_progress_t* ui_progress)
         return -1;
     }
 
-    ui_progress->mode = string_2_id(progress_mode->valuestring, progress_mode_map, ARRAY_SIZE(progress_mode_map),PROGRESS_MODE_INVALID);
+    ui_progress->mode = string_2_id(progress_mode->valuestring, progress_mode_map, ARRAY_SIZE(progress_mode_map), PROGRESS_MODE_INVALID);
     if (ui_progress->mode == PROGRESS_MODE_INVALID) {
-        UI_LOG_ERROR("parse progress mode config error. val : %s\n",progress_mode->valuestring);
+        UI_LOG_ERROR("parse progress mode config error. val : %s\n", progress_mode->valuestring);
         return -1;
     }
 
@@ -275,7 +275,7 @@ static ui_obj_t* json_ota_ui_obj_parse(cJSON* ui_obj, ui_ota_page_t* ota_page)
 
 static int32_t ota_page_config_init(cJSON* page, ui_ota_page_t* ota_page)
 {
-    int32_t i = 0;
+    int i = 0;
     cJSON* ele = NULL;
     if (!page || !ota_page)
         return -1;
@@ -301,7 +301,7 @@ static int32_t ota_page_config_init(cJSON* page, ui_ota_page_t* ota_page)
 
 static void ota_page_config_destroy(ui_ota_page_t* ota_page)
 {
-    int32_t i = 0;
+    int i;
     if (!ota_page || !ota_page->obj_list)
         return;
 
@@ -460,7 +460,7 @@ void ota_ui_config_destroy(ui_ota_t* ui_ota)
 
 void ota_ui_page_print(ui_ota_page_t* page)
 {
-    int32_t i = 0;
+    int i;
     ui_obj_t* tmp_ui_obj = NULL;
     ui_progress_t* tmp_progress_obj = NULL;
     if (!page || !page->obj_list)
@@ -472,12 +472,12 @@ void ota_ui_page_print(ui_ota_page_t* page)
         tmp_ui_obj = page->obj_list[i];
         if (tmp_ui_obj) {
             UI_LOG_DEBUG("obj%d type:%d\n", i, tmp_ui_obj->type);
-            UI_LOG_DEBUG("obj%d area:(%d,%d,%d,%d)\n", i, tmp_ui_obj->area.x0, tmp_ui_obj->area.y0, tmp_ui_obj->area.x1, tmp_ui_obj->area.y1);
-            UI_LOG_DEBUG("obj%d align:(%d,%d)\n", i, tmp_ui_obj->align.align_hor, tmp_ui_obj->align.align_ver);
+            UI_LOG_DEBUG("obj%d area:(%ld,%ld,%ld,%ld)\n", i, tmp_ui_obj->area.x0, tmp_ui_obj->area.y0, tmp_ui_obj->area.x1, tmp_ui_obj->area.y1);
+            UI_LOG_DEBUG("obj%d align:(%ld,%ld)\n", i, tmp_ui_obj->align.align_hor, tmp_ui_obj->align.align_ver);
             if (tmp_ui_obj->type == UI_OBJ_PROGRESS) {
                 tmp_progress_obj = (ui_progress_t*)tmp_ui_obj;
-                UI_LOG_DEBUG("obj%d PROGRESS mode:%d\n", i, tmp_progress_obj->mode);
-                UI_LOG_DEBUG("obj%d PROGRESS img list len:%d\n", i, tmp_progress_obj->img_map_len);
+                UI_LOG_DEBUG("obj%d PROGRESS mode:%ld\n", i, tmp_progress_obj->mode);
+                UI_LOG_DEBUG("obj%d PROGRESS img list len:%ld\n", i, tmp_progress_obj->img_map_len);
             }
         }
     }
