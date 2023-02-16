@@ -286,7 +286,7 @@ static void ui_progress_draw(ui_obj_t* obj, void* fb_handle)
 
     if (progress->mode == PROGRESS_MODE_NUMBER) {
         if (progress->img_map_len != 10) {
-            UI_LOG_ERROR("progress img list length should be 10 in number mode,current:%d\n", progress->img_map_len);
+            UI_LOG_ERROR("progress img list length should be 10 in number mode,current:%ld\n", progress->img_map_len);
             return;
         }
         memset(number_places, -1, sizeof(number_places));
@@ -302,7 +302,7 @@ static void ui_progress_draw(ui_obj_t* obj, void* fb_handle)
                     imgs_height = UI_MAX(imgs_height, img_head->h);
                 }
             } else {
-                UI_LOG_ERROR("unexpected index:%d for progress:%d\n", number_places[i], progress->val);
+                UI_LOG_ERROR("unexpected index:%ld for progress:%ld\n", number_places[i], progress->val);
                 return;
             }
 
@@ -556,7 +556,7 @@ static void set_test_value(uint32_t val)
     static const char* next_list[] = { "20", "40", "60", "90", "100", "100", "100" };
 
     if (val >= ARRAY_SIZE(current_list)) {
-        UI_LOG_WARN("test value :%d is out of range\n", val);
+        UI_LOG_WARN("test value :%lu is out of range\n", val);
         return;
     }
 
