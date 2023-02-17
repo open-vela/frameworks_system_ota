@@ -341,24 +341,16 @@ static int32_t ota_ui_upgrade_config_init(cJSON* root, ui_ota_t* ui_ota)
 
     /* upgrade_fail_page page parse */
     upgrade_fail_page = cJSON_GetObjectItem(root, "upgrade_fail_page");
-    if (!cJSON_IsObject(upgrade_fail_page)) {
-        UI_LOG_ERROR("No upgrade_fail_page found.\n");
-        goto fail_page_err;
-    }
 
-    if (ota_page_config_init(upgrade_fail_page, &(ui_ota->upgrade_fail_page)) < 0) {
+    if (cJSON_IsObject(upgrade_fail_page) && ota_page_config_init(upgrade_fail_page, &(ui_ota->upgrade_fail_page)) < 0) {
         UI_LOG_ERROR("upgrade_fail_page config parse error.\n");
         goto fail_page_err;
     }
 
     /* upgrade_success_page page parse */
     upgrade_success_page = cJSON_GetObjectItem(root, "upgrade_success_page");
-    if (!cJSON_IsObject(upgrade_success_page)) {
-        UI_LOG_ERROR("No upgrade_success_page found.\n");
-        goto success_page_err;
-    }
 
-    if (ota_page_config_init(upgrade_success_page, &(ui_ota->upgrade_success_page)) < 0) {
+    if (cJSON_IsObject(upgrade_success_page) && ota_page_config_init(upgrade_success_page, &(ui_ota->upgrade_success_page)) < 0) {
         UI_LOG_ERROR("upgrade_success_page config parse error.\n");
         goto success_page_err;
     }

@@ -422,6 +422,12 @@ static void ota_ui_show_page(fb_handle_t* handle, ui_ota_page_t* page, uint32_t 
 {
     int i = 0;
     ui_obj_t* obj = NULL;
+
+    /* do nothing if page is empty */
+    if (!page->obj_list) {
+        return;
+    }
+
     /* check dirty area */
     if (check_dirty_area(&(page->dirty_area)) < 0)
         return;
