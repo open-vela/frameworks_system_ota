@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <cJSON.h>
 #include <fcntl.h>
 #include <stdio.h>
