@@ -19,6 +19,7 @@
 #include <nuttx/config.h>
 #include <nuttx/video/fb.h>
 #include <nuttx/video/rgbcolors.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,10 @@ typedef struct {
     struct fb_planeinfo_s plane_info;
     struct fb_videoinfo_s video_info;
     void* fb_mem;
+    FAR void* last_buffer;
+    FAR void* act_buffer;
+    uint32_t fbmem2_yoffset;
+    bool double_buffer;
 } fb_handle_t;
 
 static int32_t check_dirty_area(ui_area_t* area)
@@ -153,7 +158,7 @@ static uint32_t ota_ui_alpha_mix(uint32_t bg_color, uint32_t fg_color)
 static int32_t ota_ui_draw_fillrect(fb_handle_t* handle, ui_area_t* area, uint32_t color)
 {
     int32_t i = 0, j = 0, offset = 0;
-    uint32_t* fb_bpp32 = handle->fb_mem;
+    uint32_t* fb_bpp32 = handle->act_buffer;
     ui_area_t draw_area, panel_area;
     const uint8_t bpp = handle->plane_info.bpp;
     const uint32_t xres = handle->video_info.xres;
@@ -195,7 +200,7 @@ static int32_t ota_ui_draw_img(fb_handle_t* handle, ui_area_t* area, ui_area_t* 
     img_head_t* img_head = (img_head_t*)imgBuf;
     ui_area_t draw_area;
     uint32_t* img_data = (uint32_t*)(imgBuf + sizeof(img_head_t));
-    uint32_t* fb_bpp32 = handle->fb_mem;
+    uint32_t* fb_bpp32 = handle->act_buffer;
     const uint8_t bpp = handle->plane_info.bpp;
     const uint16_t xres = handle->video_info.xres;
 
@@ -418,6 +423,38 @@ static ui_progress_t* ui_page_find_progress(ui_ota_page_t* page)
     return NULL;
 }
 
+/****************************************************************************
+ * Name: fbdev_switch_buffer
+ ****************************************************************************/
+
+static void fbdev_switch_buffer(fb_handle_t* handle)
+{
+    struct fb_area_s fb_area;
+    /* Save the buffer address for the next synchronization */
+    handle->last_buffer = handle->act_buffer;
+
+    if (handle->act_buffer == handle->fb_mem) {
+        handle->plane_info.yoffset = 0;
+        handle->act_buffer = handle->fb_mem
+            + handle->fbmem2_yoffset * handle->plane_info.stride;
+    } else {
+        handle->plane_info.yoffset = handle->fbmem2_yoffset;
+        handle->act_buffer = handle->fb_mem;
+    }
+
+    fb_area.x = 0;
+    fb_area.y = 0;
+    fb_area.w = handle->video_info.xres;
+    fb_area.h = handle->video_info.yres;
+
+    ioctl(handle->fb_device, FBIO_UPDATE,
+        (unsigned long)((uintptr_t)&fb_area));
+
+    /* Commit buffer to fb driver */
+    ioctl(handle->fb_device, FBIOPAN_DISPLAY,
+        (unsigned long)((uintptr_t) & (handle->plane_info)));
+}
+
 static void ota_ui_show_page(fb_handle_t* handle, ui_ota_page_t* page, uint32_t bg_color)
 {
     int i = 0;
@@ -441,8 +478,11 @@ static void ota_ui_show_page(fb_handle_t* handle, ui_ota_page_t* page, uint32_t 
             obj->ui_draw(obj, handle);
         }
     }
-    /* clear dirty area */
-    ota_ui_set_area(&(page->dirty_area), 0, 0, 0, 0);
+
+    fbdev_switch_buffer(handle);
+
+    /* reset dirty area */
+    ota_ui_set_area(&(page->dirty_area), 0, 0, handle->video_info.xres, handle->video_info.yres);
 }
 
 static int32_t ota_fb_init(const char* dev_path, fb_handle_t* handle)
@@ -467,12 +507,18 @@ static int32_t ota_fb_init(const char* dev_path, fb_handle_t* handle)
         goto fail;
     }
 
+    handle->double_buffer = (handle->plane_info.yres_virtual == (handle->video_info.yres * 2));
+
     handle->fb_mem = mmap(NULL, handle->plane_info.fblen, PROT_READ | PROT_WRITE,
         MAP_SHARED | MAP_FILE, handle->fb_device, 0);
     if (handle->fb_mem == MAP_FAILED) {
         UI_LOG_ERROR("fb device mmap error!\n");
         goto fail;
     }
+    if (handle->double_buffer) {
+        handle->fbmem2_yoffset = handle->video_info.yres;
+    }
+    handle->act_buffer = handle->fb_mem + handle->fbmem2_yoffset * handle->plane_info.stride;
     return 0;
 fail:
     if (handle->fb_device > 0) {
@@ -523,12 +569,12 @@ static void ota_calc_display_progress(upgrade_progress_t* progress)
     static uint32_t slow_tick_count = 0, fast_tick_count = 0;
     if (progress) {
         if (progress->display < progress->cur) {
-            if (slow_tick_count++ >= 30) {
+            if (slow_tick_count++ >= 20) {
                 progress->display++;
                 slow_tick_count = fast_tick_count = 0;
             }
         } else {
-            if (fast_tick_count++ >= 300) {
+            if (fast_tick_count++ >= 200) {
                 if (progress->display < progress->next) {
                     progress->display++;
                 }
@@ -582,6 +628,8 @@ int main(int argc, char* argv[])
     int32_t option = 0;
     char config_path[128] = OTA_UI_DEFAULT_CONFIG_PATH;
     char dev_path[64] = FB_DEFAULT_DEV_PATH;
+    struct pollfd fds[1];
+    int ret = 0;
 
     while ((option = getopt(argc, argv, "t:c:d:lh")) != -1) {
         switch (option) {
@@ -632,9 +680,21 @@ int main(int argc, char* argv[])
 
     /* find out the progress widget first */
     ui_progress = ui_page_find_progress(&ui_ota.upgrading_page);
+    fds[0].fd = fb_handle.fb_device;
+    fds[0].events = POLLOUT;
 
     while (1) {
         /* sync progress from ota system */
+        ret = poll(fds, 1, -1);
+
+        if (ret < 0) {
+            break;
+        } else if (ret == 0) {
+            continue;
+        }
+
+        ioctl(fb_handle.fb_device, FBIO_CLEARNOTIFY, NULL);
+
         if (tickCount % sync_progress_tick == 0) {
             ota_sync_upgrade_progress(&upgrade_progress);
         }
@@ -653,7 +713,6 @@ int main(int argc, char* argv[])
         ota_ui_show_page(&fb_handle, &ui_ota.upgrading_page, ui_ota.bg_color);
 
         tickCount++;
-        usleep(UI_TICK_MS);
     }
 
     if (upgrade_progress.cur < 0) {
