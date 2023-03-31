@@ -9,6 +9,33 @@ config OTA_UI
 	---help---
 		This option will display upgrade progress on panel.
 
+config UTILS_AVB_VERIFY
+	tristate "AVB verification tools"
+	default n
+	depends on KVDB
+	depends on LIB_AVB
+	---help---
+		Enable AVB verification tools
+
+if UTILS_AVB_VERIFY
+
+config UTILS_AVB_VERIFY_PROGNAME
+	string "Program name of AVB verification tools"
+	default "avb_verify"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config UTILS_AVB_VERIFY_PRIORITY
+	int "Priority of AVB verification tools"
+	default 100
+
+config UTILS_AVB_VERIFY_STACKSIZE
+	int "Stack size of AVB verification tools"
+	default 4096
+
+endif
+
 config OTA_VERIFY
 	tristate "OTA image verify"
 	default n

@@ -43,5 +43,15 @@ CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/kvdb
 CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/netutils/cjson/cJSON
 endif
 
+ifneq ($(CONFIG_UTILS_AVB_VERIFY),)
+PROGNAME += $(CONFIG_UTILS_AVB_VERIFY_PROGNAME)
+PRIORITY += $(CONFIG_UTILS_AVB_VERIFY_PRIORITY)
+STACKSIZE += $(CONFIG_UTILS_AVB_VERIFY_STACKSIZE)
+MODULE = $(CONFIG_UTILS_AVB_VERIFY)
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/avb/avb/libavb
+MAINSRC += verify/avb_main.c
+CSRCS += verify/avb_verify.c
+endif
+
 include $(APPDIR)/Application.mk
 
