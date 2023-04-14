@@ -6,6 +6,7 @@
 config OTA_UI
 	bool "Enable OTA UI module"
 	default n
+	depends on GRAPHICS_LVGL
 	---help---
 		This option will display upgrade progress on panel.
 
