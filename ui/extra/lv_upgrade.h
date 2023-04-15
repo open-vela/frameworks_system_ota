@@ -42,6 +42,7 @@ typedef struct {
     image_data_t** image_array;
     void* image_percent_sign;
     int8_t progress[LV_PROGRESS_DIGIT]; /* Current value of the upgrade, buffer with inverted byte array, like: 100->{0,0,1}, 50->{0,5,-1} */
+    volatile int8_t value; /* sync with above param progress[] */
 } lv_upgrade_t;
 
 extern const lv_obj_class_t lv_upgrade_class;
