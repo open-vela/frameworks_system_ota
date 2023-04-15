@@ -57,6 +57,7 @@ static void lv_upgrade_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
     upgrade->image_array_size = 0;
     upgrade->image_array = NULL;
     upgrade->image_percent_sign = NULL;
+    upgrade->value = -1;
     lv_memset(upgrade->progress, -1, sizeof(upgrade->progress));
 }
 
@@ -322,6 +323,10 @@ void lv_upgrade_set_progress(lv_obj_t* obj, uint32_t value)
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
     lv_memset(upgrade->progress, -1, sizeof(upgrade->progress));
 
+    if (upgrade->value >= 0 && upgrade->value == value) {
+        return;
+    }
+
     tmp_value = value;
     while (i < LV_PROGRESS_DIGIT) {
         upgrade->progress[i] = tmp_value % 10;
@@ -332,6 +337,7 @@ void lv_upgrade_set_progress(lv_obj_t* obj, uint32_t value)
         i++;
     }
 
+    upgrade->value = value;
     if (upgrade->type == LV_UPGRADE_TYPE_NUM) {
         /* calc percent sign width */
         lv_calc_obj_size(upgrade, upgrade->image_percent_sign, &width, &height);
@@ -369,15 +375,13 @@ uint32_t lv_upgrade_get_value(lv_obj_t* obj)
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
-    if (upgrade) {
-        while (i < LV_PROGRESS_DIGIT) {
-            if (upgrade->progress[i] < 0) {
-                break;
-            }
-            result += upgrade->progress[i] * inc_value;
-            inc_value *= 10;
-            i++;
+    while (i < LV_PROGRESS_DIGIT) {
+        if (upgrade->progress[i] < 0) {
+            break;
         }
+        result += upgrade->progress[i] * inc_value;
+        inc_value *= 10;
+        i++;
     }
 
     return result;
