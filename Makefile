@@ -26,8 +26,8 @@ PRIORITY = $(CONFIG_OTA_VERIFY_PRIORITY)
 STACKSIZE = $(CONFIG_OTA_VERIFY_STACKSIZE)
 MODULE = $(CONFIG_OTA_VERIFY)
 
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib/contrib/minizip}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/external/zlib/zlib}
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib/contrib/minizip
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib
 MAINSRC += verify/verify.c
 
 endif
@@ -39,8 +39,8 @@ STACKSIZE += $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_OTA_UI)
 CSRCS += ui/ui_config_parse.c
 MAINSRC += ui/ui_display.c
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/frameworks/kvdb}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/netutils/cjson/cJSON}
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/kvdb
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/netutils/cjson/cJSON
 endif
 
 include $(APPDIR)/Application.mk
