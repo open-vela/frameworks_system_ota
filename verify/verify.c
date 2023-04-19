@@ -24,6 +24,7 @@
 #include <mbedtls/base64.h>
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
+#include <mbedtls/x509_crt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -446,6 +447,39 @@ error:
     return res;
 }
 
+int publickey_verify(data_block_t* pubkey, data_block_t* certificate)
+{
+    mbedtls_x509_crt cert;
+    uint8_t* pkey_psa_start;
+    uint8_t* pkey_psa = NULL;
+    int buflen;
+    int res = -1;
+
+    buflen = pubkey->length + 1;
+    pkey_psa = malloc(buflen);
+    assert_res(pkey_psa != NULL);
+
+    // Parse certificate
+    mbedtls_x509_crt_init(&cert);
+    res = mbedtls_x509_crt_parse(&cert, (const unsigned char*)certificate->data,
+        certificate->length);
+    assert_res(res == 0);
+
+    // Get public key in der format from certificate
+    res = mbedtls_pk_write_pubkey_der(&cert.pk, pkey_psa, buflen);
+    assert_res(res == pubkey->length);
+
+    // mbedtls_pk_write_pubkey_der() writes backwards in the data buffer.
+    pkey_psa_start = pkey_psa + buflen - res;
+    res = memcmp(pubkey->data, pkey_psa_start, pubkey->length);
+    assert_res(res == 0);
+
+error:
+    mbedtls_x509_crt_free(&cert);
+    free(pkey_psa);
+    return res;
+}
+
 /**
  * @brief app Signature verification
  */
@@ -490,6 +524,10 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
     assert_res(res == 0);
 
     res = certificate_verify(&signature_info, cert_path);
+    assert_res(res == 0);
+
+    // Verify the public key
+    res = publickey_verify(&signature_info.public_key, &signature_info.certificate);
     assert_res(res == 0);
 
 error:
