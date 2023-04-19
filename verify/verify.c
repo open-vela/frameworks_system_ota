@@ -18,19 +18,19 @@
  *
  ****************************************************************************/
 
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <mbedtls/base64.h>
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
-#include <unzip.h>
-#include <assert.h>
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <syslog.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <syslog.h>
 #include <unistd.h>
+#include <unzip.h>
 
 #define DIGESTED_CHUNK_MAX_SIZE (1024 * 1024)
 
@@ -257,7 +257,7 @@ static int verify_block_signature(data_block_t* pubkey, data_block_t* raw_data, 
 
     // Verify signature
     res = mbedtls_pk_verify(&pk, mbedtls_md_get_type(mdinfo),
-            md, mbedtls_md_get_size(mdinfo), signature->data, signature->length);
+        md, mbedtls_md_get_size(mdinfo), signature->data, signature->length);
     assert_res(res == 0);
 
 error:
@@ -350,7 +350,7 @@ static int app_block_digest_verification(const char* path, app_block_t* app_bloc
     int chunk_count = 0;
     unsigned char md[32], *buff = NULL, prefix = 0xa5;
     const mbedtls_md_info_t* mdinfo;
-    mbedtls_md_context_t block_ctx = {0}, rpk_ctx = {0};
+    mbedtls_md_context_t block_ctx = { 0 }, rpk_ctx = { 0 };
 
     int fd = open(path, O_RDONLY);
     assert_res(fd > 0);
@@ -372,7 +372,7 @@ static int app_block_digest_verification(const char* path, app_block_t* app_bloc
 
     res = mbedtls_md_update(&rpk_ctx, &prefix, 1);
     assert_res(res == 0);
-    res = mbedtls_md_update(&rpk_ctx, (const unsigned char *)&chunk_count, sizeof(chunk_count));
+    res = mbedtls_md_update(&rpk_ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
     assert_res(res == 0);
 
     md_rpk_block(&rpk_ctx, fd, &app_block->data_block);
@@ -485,7 +485,7 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
     res = -1;
     assert_res(signature_info.digests_signatures_algorithm_id == signature_info.signatures_algorithm_id);
 
-    //  Compare whether the app summary is consistent with the signature block summary
+    // Compare whether the app summary is consistent with the signature block summary
     res = app_block_digest_verification(app_path, app_block, &signature_info.one_digest);
     assert_res(res == 0);
 
@@ -499,7 +499,7 @@ error:
     return res;
 }
 
-static int verify(const char* app_path, const char *cert_path)
+static int verify(const char* app_path, const char* cert_path)
 {
     unzFile zFile;
     unz_global_info64 zGlobalInfo;
