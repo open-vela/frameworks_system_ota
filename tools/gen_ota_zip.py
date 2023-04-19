@@ -97,19 +97,13 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
 
     i = 0
     while i < bin_list_cnt:
-        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * (max_progress - 30 - 40)
-        ota_progress_list.append(math.floor(ota_progress))
-        i += 1
-
-    i = 0
-    while i < bin_list_cnt:
-        ota_progress += float(bin_size_list[i] / sum(bin_size_list)) * (max_progress - 30 - 30)
+        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * (max_progress - 30)
         ota_progress_list.append(math.floor(ota_progress))
         i += 1
 
     j = 0
     while j < len(newpartition_list):
-        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - 30 - 30)
+        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - 70)
         ota_progress_list.append(math.floor(ota_progress))
         j += 1
 
@@ -143,9 +137,9 @@ setprop ota.version.next %d
     fd.write(str)
 
     str = \
-'''if [ ! -e %s/%s ]
+'''if [ ! -e /ota/%s ]
 then
-''' % (args.do_ota_path, bin_list[bin_list_cnt - 1])
+''' % (bin_list[bin_list_cnt - 1])
     fd.write(str)
 
     i = 0
@@ -159,28 +153,21 @@ then
         str = \
 '''
     echo "generate %s"%s
-    time "bspatch %s %s/%stmp %s/%spatch %s"
+    time "ddelta_apply %s %s/ /ota/%spatch"
     if [ $? -ne 0 ]
     then
-        echo "bspatch %stmp failed"%s
-        setprop ota.progress.current -1
-        exit
-    fi
-
-    mv %s/%stmp %s/%s
-    if [ $? -ne 0 ]
-    then
-        echo "rename %s failed"%s
+        echo "ddelta_apply %s failed"%s
         setprop ota.progress.current -1
         exit
     fi
 
     setprop ota.progress.current %d
-    setprop ota.progress.next %d
-''' % (bin_list[i], args.otalog, patch_tmp, args.do_ota_path, bin_list[i][:-3], args.do_ota_tmp,
-       bin_list[i][:-3], args.patch_compress, bin_list[i][:-3], args.otalog, args.do_ota_tmp, bin_list[i][:-3],
-       args.do_ota_tmp, bin_list[i], bin_list[i], args.otalog, ota_progress_list[i],
-       ota_progress_list[i + 1])
+''' % (bin_list[i], args.otalog,
+       patch_tmp, args.ota_tmp, bin_list[i][:-3],
+       bin_list[i][:-4], args.otalog,
+       ota_progress_list[i])
+        if i + 1 < bin_list_cnt:
+            str += '    setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
         i += 1
 
@@ -189,49 +176,24 @@ then
 fi
 '''
     fd.write(str)
-
-    str = \
-'''
-echo -e -n "a" > %s/dd
-''' % (args.do_ota_tmp)
-    fd.write(str)
-
-    i = 0
-    while i < bin_list_cnt:
-        str = \
-'''
-echo "install %s"%s
-time "dd if=%s/%s of=%s bs=%s"
-if [ $? -ne 0 ]
-then
-    echo "dd %s failed"%s
-    reboot 1
-fi
-setprop ota.progress.current %d
-'''% (bin_list[i], args.otalog, args.do_ota_path, bin_list[i], patch_path[i], args.bs, bin_list[i], args.otalog, ota_progress_list[bin_list_cnt + i])
-
-        if i + 1 < bin_list_cnt or args.newpartition:
-            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
-        fd.write(str)
-        i += 1
 
     i = 0
     for file in newpartition_list:
         str = \
 '''
 echo "install %s"%s
-time "dd if=%s/%s of=%s bs=%s"
+time "dd if=/ota/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' %(file, args.otalog, args.do_ota_path, file,'/dev/' + file[5:-4],
-      args.bs, file, args.otalog, ota_progress_list[2 * bin_list_cnt + i])
+''' %(file, args.otalog, file,'/dev/' + file[5:-4],
+      args.bs, file, args.otalog, ota_progress_list[bin_list_cnt + i])
 
-        if 2 * bin_list_cnt + i < len(ota_progress_list) - 1:
-            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[2 * bin_list_cnt + i + 1])
+        if bin_list_cnt + i < len(ota_progress_list) - 1:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[bin_list_cnt + i + 1])
         i += 1
         fd.write(str)
 
@@ -246,6 +208,12 @@ setprop ota.progress.current %d
         user_end_script.close()
         str = "setprop ota.progress.current 100\n"
         fd.write(str)
+
+    str = \
+'''
+setprop ota.progress.current 100
+'''
+    fd.write(str)
 
     fd.close()
 
@@ -264,7 +232,7 @@ def gen_diff_ota(args):
             if ab_file not in old_files[2] or ab_file not in new_files[2]:
                 logger.error("%s not in %s or %s" % (ab_file, args.bin_path[0], args.bin_path[1]))
                 exit(-1)
-            if filecmp.cmp("%s/%s" % (args.bin_path[0], ab_file), "%s/%s" % (args.bin_path[1], ab_file)) != True:
+            if filecmp.cmp("%s/%s" % (args.bin_path[0], ab_file), "%s/%s" % (args.bin_path[1], ab_file), shallow=False) != True:
                 ab_flag = True
     else:
         args.ab = []
@@ -281,6 +249,9 @@ def gen_diff_ota(args):
                 newpartition_list.remove(file)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
+
+    old_files[2].sort()
+    new_files[2].sort()
     for i in range(len(old_files[2])):
         for j in range(len(new_files[2])):
             oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
@@ -288,13 +259,15 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin' and \
-               (filecmp.cmp(oldfile, newfile) != True or old_files[2][i] in args.ab and ab_flag):
+               (filecmp.cmp(oldfile, newfile, shallow=False) != True or old_files[2][i] in args.ab and ab_flag):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
-                ret = os.system("%s/bsdiff %s %s %s %s" % (tools_path, oldfile, newfile,
-                                                           patchfile, args.patch_compress))
+                if args.blksz == '0':
+                    ret = os.system("%s/ddelta_generate %s %s %s" % (tools_path, oldfile, newfile, patchfile))
+                else:
+                    ret = os.system("%s/ddelta_generate %s %s %s %s" % (tools_path, oldfile, newfile, patchfile, args.blksz))
                 if (ret != 0):
-                    logger.error("bsdiff error")
+                    logger.error("ddelta_generate error")
                     exit(ret)
                 ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
                 patch_path.append('/dev/' + old_files[2][i][5:-4])
@@ -396,7 +369,7 @@ setprop ota.version.next %d
 ''' % (args.version[0], args.version[0], args.otalog, args.version[0])
 
     fd.write(str)
-    # aviod /dev/<xxx> doesn't exist
+    # avoid /dev/<xxx> doesn't exist
     i = 0
     while i < path_cnt:
         str = \
@@ -414,7 +387,7 @@ fi
     str = \
 '''
 echo -e -n "a" > %s/dd
-''' % (args.do_ota_tmp)
+''' % (args.ota_tmp)
     fd.write(str)
 
     i = 0
@@ -422,14 +395,16 @@ echo -e -n "a" > %s/dd
         str =\
 '''
 echo "install %s"%s
-time " dd if=%s/%s of=%s bs=%s"
+time " dd if=/ota/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
     reboot 1
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog, args.do_ota_path, bin_list[i], path_list[i], args.bs, bin_list[i], args.otalog, ota_progress_list[i])
+''' % (bin_list[i], args.otalog,
+       bin_list[i], path_list[i], args.bs,
+       bin_list[i], args.otalog, ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
@@ -534,10 +509,10 @@ if __name__ == "__main__":
                         help='ota dd command bs option',\
                         default='32768')
 
-    parser.add_argument('--patch_compress',\
-                        help='choose how to compress the patch file. lz4,bz2 or don\'t compress',\
-                        choices=['lz4','bz2','none'],\
-                        default='lz4')
+    parser.add_argument('--blksz',\
+                        help='block size option.'\
+                             'if it not specified, non in-place patch will be used.',\
+                        default='0')
 
     parser.add_argument('bin_path',\
                         help=bin_path_help,
@@ -584,11 +559,7 @@ support many [xxx] to set different speed
 if don't have speedconf all bin speed is 1,or not,
 will bin size will multiply speed then calculate progress''')
 
-    parser.add_argument('--do_ota_path',\
-                        help='ota.zip unzip or mount path',\
-                        default='/data/ota_tmp')
-
-    parser.add_argument('--do_ota_tmp',\
+    parser.add_argument('--ota_tmp',\
                         help='save ota tmpfile path',\
                         default='/data/ota_tmp')
 
@@ -617,9 +588,6 @@ will bin size will multiply speed then calculate progress''')
     tools_path = os.path.abspath(os.path.dirname(sys.argv[0]))
     pwd_path = os.getcwd()
 
-    if args.patch_compress == 'none':
-        args.patch_compress = ' '
-
     if os.path.exists(args.output):
         inputstr = input("The %s already exists,will cover it? [Y/N]\n" % args.output)
         if inputstr != 'Y':
@@ -627,10 +595,10 @@ will bin size will multiply speed then calculate progress''')
 
     if len((args.bin_path)) == 2:
         os.chdir(tools_path)
-        if not os.path.exists("bsdiff"):
-            os.system('make -C ../../../external/bsdiff/ -f Makefile.host')
-            os.system('cp ../../../external/bsdiff/bsdiff/bsdiff .')
-            os.system('make -C ../../../external/bsdiff/ -f Makefile.host clean')
+        if not os.path.exists("ddelta_generate"):
+            os.system('make -C ../../../external/ddelta/ddelta -f Makefile')
+            os.system('mv ../../../external/ddelta/ddelta/ddelta_generate .')
+            os.system('mv ../../../external/ddelta/ddelta/ddelta_apply .')
         os.chdir(pwd_path)
         gen_diff_ota(args)
     elif len(args.bin_path) == 1:
