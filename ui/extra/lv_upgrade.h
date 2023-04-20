@@ -26,6 +26,9 @@ extern "C" {
 typedef enum {
     LV_UPGRADE_TYPE_NUM,
     LV_UPGRADE_TYPE_BAR,
+    LV_UPGRADE_TYPE_CIRCLE,
+    LV_UPGRADE_TYPE_ANIM,
+    LV_UPGRADE_TYPE_CUSTOM_ANIM,
     LV_UPGRADE_TYPE_INVALID
 } lv_upgrade_type_e;
 
@@ -38,11 +41,21 @@ typedef struct {
 typedef struct {
     lv_obj_t obj;
     lv_upgrade_type_e type;
+    lv_draw_img_dsc_t img_dsc;
+    void* image_percent_sign;
     uint8_t image_array_size;
     image_data_t** image_array;
-    void* image_percent_sign;
     int8_t progress[LV_PROGRESS_DIGIT]; /* Current value of the upgrade, buffer with inverted byte array, like: 100->{0,0,1}, 50->{0,5,-1} */
     volatile int8_t value; /* sync with above param progress[] */
+    lv_anim_t anim;
+    union {
+        lv_obj_t* arc;
+        void* anim_data;
+    };
+    union {
+        uint16_t anim_fps;
+        uint16_t arc_radius;
+    };
 } lv_upgrade_t;
 
 extern const lv_obj_class_t lv_upgrade_class;
@@ -55,10 +68,25 @@ extern const lv_obj_class_t lv_upgrade_class;
 lv_obj_t* lv_upgrade_create(lv_obj_t* parent);
 
 /**
- * Set upgrade type
+ * Set upgrade type of lv_upgrade_type_e
+ * @param obj pointer to a upgrade object
  * @param type upgrade show type
 */
 void lv_upgrade_set_type(lv_obj_t* obj, lv_upgrade_type_e type);
+
+/**
+ * Set upgrade animation fps
+ * @param obj pointer to a upgrade object
+ * @param fps if upgrade type set 'animation', fps is vailed in animation, default 30
+*/
+void lv_upgrade_set_animation_fps(lv_obj_t* obj, int fps);
+
+/**
+ * Set upgrade circle animation radius
+ * @param obj pointer to a upgrade object
+ * @param radius when upgrade type set 'custom_anim', radius set animation size
+*/
+void lv_upgrade_set_animation_radius(lv_obj_t* obj, int radius);
 
 /**
  * Set percent sign image file path
