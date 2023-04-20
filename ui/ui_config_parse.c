@@ -226,6 +226,7 @@ static int32_t json_ui_image_set(lv_obj_t* lv_obj, const char* img_path)
     }
 
     lv_img_set_src(lv_obj, (lv_img_dsc_t*)img_buff);
+    lv_img_set_offset_y(lv_obj, -1);
 
     lv_obj->user_data = img_buff;
 
@@ -267,6 +268,8 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
     int mode_type = 0;
     cJSON* progress_img_src_map = NULL;
     cJSON* progress_mode = NULL;
+    cJSON* animation_fps = NULL;
+    cJSON* animation_radius = NULL;
     cJSON* percentage_img = NULL;
     cJSON* a_element = NULL;
     uint32_t img_map_len = 0;
@@ -275,7 +278,10 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
 
     static const string_map_t progress_mode_map[] = {
         { "number", PROGRESS_MODE_NUMBER },
-        { "bar", PROGRESS_MODE_BAR }
+        { "bar", PROGRESS_MODE_BAR },
+        { "circle", PROGRESS_MODE_CIRCLE },
+        { "animation", PROGRESS_MODE_ANIM },
+        { "custom_anim", PROGRESS_MODE_CUSTOM_ANIM }
     };
 
     if (!page) {
@@ -285,6 +291,7 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
 
     /* create lvgl progress obj */
     lv_progress_base_obj = lv_obj_create(page);
+    lv_obj_remove_style(lv_progress_base_obj, NULL, LV_PART_ANY | LV_STATE_ANY);
 
     /* create upgrade obj */
     upgrade_obj = lv_upgrade_create(lv_progress_base_obj);
@@ -308,6 +315,16 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
 
     lv_upgrade_set_type(upgrade_obj, (lv_upgrade_type_e)mode_type);
 
+    animation_fps = cJSON_GetObjectItem(progress, "animation_fps");
+    if (cJSON_IsNumber(animation_fps)) {
+        lv_upgrade_set_animation_fps(upgrade_obj, animation_fps->valueint);
+    }
+
+    animation_radius = cJSON_GetObjectItem(progress, "animation_radius");
+    if (cJSON_IsNumber(animation_radius)) {
+        lv_upgrade_set_animation_radius(upgrade_obj, animation_radius->valueint);
+    }
+
     /* optional attr */
     percentage_img = cJSON_GetObjectItem(progress, "percentage_src");
     if (cJSON_IsString(percentage_img)) {
@@ -316,8 +333,7 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
 
     progress_img_src_map = cJSON_GetObjectItem(progress, "img_src_list");
     if ((img_map_len = cJSON_GetArraySize(progress_img_src_map)) <= 0) {
-        UI_LOG_ERROR("ui parse progress image src config error.\n");
-        return UI_FILE_PARSE_ERROR;
+        UI_LOG_INFO("ui parse progress image list null.\n");
     }
 
     if (mode_type == PROGRESS_MODE_NUMBER && img_map_len < 10) {
@@ -331,7 +347,7 @@ static int32_t json_progress_parse(cJSON* progress, lv_obj_t* page)
     {
         int key = (int)strtol(a_element->string, NULL, 10);
         if (mode_type == PROGRESS_MODE_NUMBER && key != i) {
-            UI_LOG_ERROR("ui img list length should be the order like [0.1.2.3.4.5.6.7.8.9].\n");
+            UI_LOG_ERROR("ui img list length should be the order like [0.1.2.3.4.5.6.7.8.9] in number mode.\n");
             break;
         }
         /* read file to map */
@@ -348,6 +364,7 @@ static int32_t json_label_parse(cJSON* label, lv_obj_t* page)
 
     /* create lvgl label obj */
     lv_obj_t* label_obj = lv_obj_create(page);
+    lv_obj_remove_style(label_obj, NULL, LV_PART_ANY | LV_STATE_ANY);
 
     /* create img obj */
     lv_obj_t* img_label = lv_img_create(label_obj);
@@ -404,14 +421,12 @@ static int32_t json_ui_page_cont_parse(cJSON* ui_obj, lv_obj_t* page_obj)
 
 static void* create_page_obj(uint32_t bgcolor)
 {
-    static lv_style_t style_bg;
-    lv_style_init(&style_bg);
-    lv_style_set_bg_color(&style_bg, lv_color_hex(bgcolor));
-    lv_style_set_bg_opa(&style_bg, LV_OPA_COVER);
-
     // create object
     lv_obj_t* obj = lv_obj_create(lv_scr_act());
-    lv_obj_add_style(obj, &style_bg, 0);
+    lv_obj_remove_style(obj, NULL, LV_PART_ANY | LV_STATE_ANY);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(bgcolor), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(obj, 0, 0);
 
     lv_obj_set_size(obj, LV_HOR_RES, LV_VER_RES);
 
