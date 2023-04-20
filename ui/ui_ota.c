@@ -166,6 +166,7 @@ int main(int argc, char* argv[])
 
                 if (ui_page_exist(upgrade_success_page_name) && progress.current >= 100) {
                     ret = ui_page_show(upgrade_success_page_name);
+                    ui_timer_handler();
                 }
             }
         }
