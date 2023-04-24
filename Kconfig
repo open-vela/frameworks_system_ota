@@ -10,6 +10,18 @@ config OTA_UI
 	---help---
 		This option will display upgrade progress on panel.
 
+if OTA_UI
+
+config OTA_UI_PROG_SYNC_TIME
+	int "OTA UI progress sync time"
+	default 40000
+
+config OTA_UI_FINISH_EXEC_CMD
+	string "OTA UI end exec command"
+	default "reboot 0"
+
+endif
+
 config UTILS_AVB_VERIFY
 	tristate "AVB verification tools"
 	default n
