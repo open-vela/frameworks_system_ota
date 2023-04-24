@@ -24,12 +24,13 @@
 
 #define CONFIG_PATH_SIZE (128)
 #define UI_DEFAULT_CONFIG_PATH "/resource/recovery/ota_ui_config.json"
-#define SYNC_OTA_PROGRESS_TIME (200 * 1000) /* 200 ms */
+#define SYNC_OTA_PROGRESS_TIME CONFIG_OTA_UI_PROG_SYNC_TIME
 
 static const char* logo_page_name = "logo_page";
 static const char* upgrading_page_name = "upgrading_page";
 static const char* upgrade_success_page_name = "upgrade_success_page";
 static const char* upgrade_fail_page_name = "upgrade_fail_page";
+static const char* reboot_cmd = CONFIG_OTA_UI_FINISH_EXEC_CMD;
 
 typedef struct upgrade_progress_s {
     int32_t current;
@@ -41,18 +42,17 @@ static void ota_calc_progress(upgrade_progress_t* progress)
 {
     static uint32_t slow_tick_count = 0, fast_tick_count = 0;
     if (progress) {
-        if (progress->current < progress->prev_node) {
-            if (fast_tick_count++ >= 30) {
+        if (progress->current < progress->prev_node && fast_tick_count++ >= 2) {
+            progress->current++;
+            slow_tick_count = fast_tick_count = 0;
+        } else {
+            if (progress->current < progress->next_node && slow_tick_count++ >= 100) {
                 progress->current++;
                 slow_tick_count = fast_tick_count = 0;
             }
-        } else {
-            if (slow_tick_count++ >= 300) {
-                if (progress->current < progress->next_node) {
-                    progress->current++;
-                }
-                slow_tick_count = fast_tick_count = 0;
-            }
+        }
+        if (progress->current >= 100 && progress->prev_node < 100) {
+            progress->current = 99;
         }
     }
 }
@@ -186,6 +186,11 @@ int main(int argc, char* argv[])
     }
 
     ui_uninit();
+
+    ota_sync_upgrade_progress(&progress);
+    if (progress.prev_node < 0 || progress.prev_node > 100) {
+        system(reboot_cmd);
+    }
 
     return 0;
 }

@@ -175,6 +175,10 @@ static uint8_t lv_get_closest_element_index(lv_upgrade_t* upgrade, uint32_t valu
             target_index = i;
         }
     }
+    /* progress bar display less than 100% when current progress is not 100% */
+    if (min_diff != 0 && target_index == upgrade->image_array_size - 1) {
+        return target_index - 1;
+    }
     return target_index;
 }
 
