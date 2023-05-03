@@ -20,18 +20,6 @@
 
 include $(APPDIR)/Make.defs
 
-ifneq ($(CONFIG_OTA_VERIFY),)
-PROGNAME = $(CONFIG_OTA_VERIFY_PROGNAME)
-PRIORITY = $(CONFIG_OTA_VERIFY_PRIORITY)
-STACKSIZE = $(CONFIG_OTA_VERIFY_STACKSIZE)
-MODULE = $(CONFIG_OTA_VERIFY)
-
-CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib/contrib/minizip
-CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib
-MAINSRC += verify/verify.c
-
-endif
-
 ifneq ($(CONFIG_OTA_UI),)
 PROGNAME += otaUI
 PRIORITY += SCHED_PRIORITY_DEFAULT
@@ -53,5 +41,14 @@ MAINSRC += verify/avb_main.c
 CSRCS += verify/avb_verify.c
 endif
 
-include $(APPDIR)/Application.mk
+ifneq ($(CONFIG_UTILS_ZIP_VERIFY),)
+PROGNAME = $(CONFIG_UTILS_ZIP_VERIFY_PROGNAME)
+PRIORITY = $(CONFIG_UTILS_ZIP_VERIFY_PRIORITY)
+STACKSIZE = $(CONFIG_UTILS_ZIP_VERIFY_STACKSIZE)
+MODULE = $(CONFIG_UTILS_ZIP_VERIFY)
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib/contrib/minizip
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib
+MAINSRC += verify/zip_verify.c
+endif
 
+include $(APPDIR)/Application.mk
