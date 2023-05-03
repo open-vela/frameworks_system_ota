@@ -36,7 +36,7 @@ config UTILS_AVB_VERIFY_STACKSIZE
 
 endif
 
-config OTA_VERIFY
+config UTILS_ZIP_VERIFY
 	tristate "OTA image verify"
 	default n
 	depends on CRYPTO_MBEDTLS
@@ -44,24 +44,25 @@ config OTA_VERIFY
 	---help---
 		This option will enable a upgrade package verify.
 
-if OTA_VERIFY
+if UTILS_ZIP_VERIFY
 
-config OTA_VERIFY_PROGNAME
+config UTILS_ZIP_VERIFY_PROGNAME
 	string "Program name"
-	default "verify"
+	default "zip_verify"
 	---help---
 		This is the name of the program that will be used when the NSH ELF
 		program is installed.
 
-config OTA_VERIFY_STACKSIZE
+config UTILS_ZIP_VERIFY_STACKSIZE
 	int "Upgrade package verify stack size"
 	default 4096
 	---help---
 		The stack size to use the upgrade package verify task.  Default: 4096
 
-config OTA_VERIFY_PRIORITY
+config UTILS_ZIP_VERIFY_PRIORITY
 	int "upgrade package verify priority"
 	default 100
 	---help---
 		The priority to use the upgrade package verify task.  Default: 100
+
 endif

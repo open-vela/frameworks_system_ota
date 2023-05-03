@@ -567,8 +567,7 @@ int main(int argc, char* argv[])
     const char* cert;
 
     if (argc != 3) {
-        printf("verify: missing required argument\n");
-        printf("Usage: verify <file> <cert>\n");
+        printf("%s <file> <cert>\n", argv[0]);
         return -EINVAL;
     }
 
