@@ -1,5 +1,5 @@
 /****************************************************************************
- * frameworks/ota/tools/verify/verify.c
+ * frameworks/ota/verify/verifyzip.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -38,19 +38,12 @@
 #define assert_res(x, ...)                                                          \
     do {                                                                            \
         if (!(x)) {                                                                 \
-            if (strlen(#__VA_ARGS__) != 0) {                                        \
+            if (*(#__VA_ARGS__) != 0) {                                             \
                 syslog(LOG_ERR, "%s:%d >> %s\n", __FILE__, __LINE__, #__VA_ARGS__); \
             }                                                                       \
             goto error;                                                             \
         }                                                                           \
     } while (0)
-
-typedef enum {
-    VERIFY_OK,
-    VERIFY_UNSIGNED,
-    VERIFY_FORMAT_ERROR,
-    VERIFY_FILE_NOT_EXIT
-} VERIFY_ERROR;
 
 // length - data block
 typedef struct data_block_s {
@@ -95,7 +88,10 @@ typedef struct signature_block_s {
     data_block_t signatures_content;
 } signature_block_t;
 
-static int calc_chunk_count(data_block_t* block);
+static int calc_chunk_count(data_block_t* block)
+{
+    return (block->length + DIGESTED_CHUNK_MAX_SIZE - 1) / DIGESTED_CHUNK_MAX_SIZE;
+}
 
 /**
  * @brief parse len-data block
@@ -144,7 +140,6 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
 {
     int fd = -1;
     int res = -1;
-    off_t central_directory_offset = 0;
     char magic_buf[16] = { 0 };
     const char* magic = "APK Sig Block 42";
     app_block_t* app_block = malloc(sizeof(app_block_t));
@@ -155,32 +150,32 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
 
     // Get Central_ Directory start offset
     off_t central_directory_offset_ptr = -(off_t)comment_len - 4 - 2;
+    uint32_t central_directory_offset = 0;
     lseek(fd, central_directory_offset_ptr, SEEK_END);
     res = read(fd, &central_directory_offset, 4);
-    assert_res(res > 0);
+    assert_res(res == 4);
     app_block->central_directory_block.data = (uint8_t*)(uintptr_t)central_directory_offset;
 
-    // format check
+    // Format check
     lseek(fd, central_directory_offset - 16, SEEK_SET);
     res = read(fd, &magic_buf, sizeof(magic_buf));
-    assert_res(res > 0);
+    assert_res(res == sizeof(magic_buf));
     res = memcmp(magic, magic_buf, sizeof(magic_buf));
     assert_res(res == 0);
 
     // Get signature block length
-    off_t signature_block_len_offset = central_directory_offset - 16 - 8, signature_block_length = 0;
+    off_t signature_block_len_offset = central_directory_offset - 16 - 8;
+    uint64_t signature_block_length = 0;
     lseek(fd, signature_block_len_offset, SEEK_SET);
-    res = read(fd, &signature_block_length, 4);
-    assert_res(res > 0);
-    app_block->signature_block.length = signature_block_length + 8;
-
-    // Read signature block
+    res = read(fd, &signature_block_length, 8);
+    assert_res(res == 8);
+    app_block->signature_block.length = (uint32_t)signature_block_length;
     app_block->signature_block.data = (uint8_t*)(uintptr_t)(central_directory_offset - app_block->signature_block.length);
 
     // Read EOCD
     off_t ecod_start_offset = central_directory_offset_ptr - 16;
     lseek(fd, ecod_start_offset, SEEK_END);
-    app_block->eocd_block.length = -1 * ecod_start_offset;
+    app_block->eocd_block.length = -ecod_start_offset;
     ecod_start_offset = lseek(fd, 0, SEEK_CUR);
     app_block->eocd_block.data = (uint8_t*)(uintptr_t)ecod_start_offset;
 
@@ -189,12 +184,12 @@ static app_block_t* parse_app_block(const char* app_path, size_t comment_len)
 
     // Read zip content data block
     app_block->data_block.data = 0;
-    app_block->data_block.length = (uintptr_t)app_block->signature_block.data;
+    app_block->data_block.length = (uintptr_t)app_block->signature_block.data - 8;
 
     close(fd);
     return app_block;
+
 error:
-    res = -1;
     close(fd);
     free(app_block);
     return NULL;
@@ -209,16 +204,16 @@ static uint8_t* get_signature_info(uint8_t* data, signature_block_t* info)
 
     // Get current signature block
     offset = parse_block(data, &info->one_sign_block);
+    ret = offset;
 
     // Get current signature data block
     offset = parse_block(info->one_sign_block.data, &info->signed_data);
     offset = parse_block(offset, &info->signatures);
     offset = parse_block(offset, &info->public_key);
-    ret = offset;
 
     // Get signed_ Data data
     offset = parse_block(info->signed_data.data, &info->digests);
-    memcpy(&info->digests_signatures_algorithm_id, (info->digests.data + 4), sizeof(uint32_t));
+    memcpy(&info->digests_signatures_algorithm_id, info->digests.data + 4, sizeof(uint32_t));
     offset = parse_block(info->digests.data + 8, &info->one_digest);
 
     offset = parse_block(offset, &info->certificate);
@@ -227,7 +222,7 @@ static uint8_t* get_signature_info(uint8_t* data, signature_block_t* info)
     // Get signatures data
     offset = parse_block(info->signatures.data, &info->signatures_content);
     memcpy(&info->signatures_algorithm_id, info->signatures_content.data, sizeof(uint32_t));
-    offset = parse_block(info->signatures.data + 8, &info->signatures_content);
+    offset = parse_block(info->signatures_content.data + 4, &info->signatures_content);
 
     return ret;
 }
@@ -235,10 +230,11 @@ static uint8_t* get_signature_info(uint8_t* data, signature_block_t* info)
 /**
  * @brief verify app signature block
  */
-static int verify_block_signature(data_block_t* pubkey, data_block_t* raw_data, data_block_t* signature)
+static int verify_signature(data_block_t* pubkey, data_block_t* raw_data, data_block_t* signature)
 {
     int res;
-    unsigned char* md = NULL;
+    const mbedtls_md_info_t* mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    unsigned char md[mbedtls_md_get_size(mdinfo)];
     mbedtls_pk_context pk;
 
     // Initialize public key
@@ -246,13 +242,7 @@ static int verify_block_signature(data_block_t* pubkey, data_block_t* raw_data, 
     res = mbedtls_pk_parse_public_key(&pk, pubkey->data, pubkey->length);
     assert_res(res == 0);
 
-    // Specify the digest calculation method
-    const mbedtls_md_info_t* mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    md = malloc(mbedtls_md_get_size(mdinfo));
-    res = -1;
-    assert_res(md != NULL);
-
-    // Validation data digest
+    // Generate data digest
     res = mbedtls_md(mdinfo, raw_data->data, raw_data->length, md);
     assert_res(res == 0);
 
@@ -262,15 +252,14 @@ static int verify_block_signature(data_block_t* pubkey, data_block_t* raw_data, 
     assert_res(res == 0);
 
 error:
-    free(md);
     mbedtls_pk_free(&pk);
     return res;
 }
 
-static int md_file_block(int fd, data_block_t* block, unsigned char* output)
+static int md_one_chunk(int fd, data_block_t* block, unsigned char* output)
 {
     int res;
-    size_t n, sum = 0;
+    size_t sum = 0;
     mbedtls_md_context_t ctx;
     unsigned char buf[1024], prefix = 0xa5;
     const mbedtls_md_info_t* mdinfo;
@@ -284,20 +273,21 @@ static int md_file_block(int fd, data_block_t* block, unsigned char* output)
     res = mbedtls_md_starts(&ctx);
     assert_res(res == 0);
 
-    res = mbedtls_md_update(&ctx, (const unsigned char*)&prefix, 1);
+    res = mbedtls_md_update(&ctx, &prefix, 1);
     assert_res(res == 0);
     res = mbedtls_md_update(&ctx, (const unsigned char*)&block->length, sizeof(uint32_t));
     assert_res(res == 0);
     lseek(fd, (uintptr_t)block->data, SEEK_SET);
 
     while (sum < block->length) {
-        size_t read_len = (block->length - sum) % sizeof(buf);
-        read_len = (read_len == 0) ? sizeof(buf) : read_len;
-        n = read(fd, buf, read_len);
-        assert_res(n > 0);
-        sum += n;
+        size_t read_len = block->length - sum;
+        if (read_len > sizeof(buf))
+            read_len = sizeof(buf);
+        res = read(fd, buf, read_len);
+        assert_res(res > 0);
+        sum += res;
 
-        res = mbedtls_md_update(&ctx, buf, n);
+        res = mbedtls_md_update(&ctx, buf, res);
         assert_res(res == 0);
     }
 
@@ -309,145 +299,129 @@ error:
     return res;
 }
 
-static int md_rpk_block(mbedtls_md_context_t* rpk_ctx, int fd, data_block_t* block)
+static int md_file_block(mbedtls_md_context_t* ctx, int fd, data_block_t* block)
 {
-    int res;
-    data_block_t sub_chunk;
-    ssize_t lenght = block->length;
+    int res = -1;
+    data_block_t chunk;
+    size_t length = block->length;
     unsigned char md[32];
 
     int cnt = calc_chunk_count(block);
     for (int i = 0; i < cnt; i++) {
-        sub_chunk.data = block->data + i * DIGESTED_CHUNK_MAX_SIZE;
-        if (lenght - DIGESTED_CHUNK_MAX_SIZE > 0) {
-            sub_chunk.length = DIGESTED_CHUNK_MAX_SIZE;
-            lenght -= DIGESTED_CHUNK_MAX_SIZE;
+        chunk.data = block->data + i * DIGESTED_CHUNK_MAX_SIZE;
+        if (length > DIGESTED_CHUNK_MAX_SIZE) {
+            chunk.length = DIGESTED_CHUNK_MAX_SIZE;
+            length -= DIGESTED_CHUNK_MAX_SIZE;
         } else {
-            sub_chunk.length = lenght;
+            chunk.length = length;
         }
 
-        res = md_file_block(fd, &sub_chunk, md);
+        res = md_one_chunk(fd, &chunk, md);
         assert_res(res == 0);
-        res = mbedtls_md_update(rpk_ctx, md, sizeof(md));
+        res = mbedtls_md_update(ctx, md, sizeof(md));
         assert_res(res == 0);
     }
 
     return 0;
-error:
-    return -1;
-}
 
-static int calc_chunk_count(data_block_t* block)
-{
-    return (block->length + DIGESTED_CHUNK_MAX_SIZE - 1) / DIGESTED_CHUNK_MAX_SIZE;
+error:
+    return res;
 }
 
 /**
- * @brief Verify the app Digest
+ * @brief Verify the app digest
  */
-static int app_block_digest_verification(const char* path, app_block_t* app_block, data_block_t* digest)
+static int verify_digest(const char* path, app_block_t* app_block, data_block_t* digest)
 {
     int res = -1;
     int chunk_count = 0;
-    unsigned char md[32], *buff = NULL, prefix = 0xa5;
+    unsigned char md[32], *buf = NULL, prefix = 0x5a;
     const mbedtls_md_info_t* mdinfo;
-    mbedtls_md_context_t block_ctx = { 0 }, rpk_ctx = { 0 };
+    mbedtls_md_context_t ctx, eocd_ctx;
+
+    mbedtls_md_init(&ctx);
+    mbedtls_md_init(&eocd_ctx);
 
     int fd = open(path, O_RDONLY);
-    assert_res(fd > 0);
+    assert_res(fd >= 0);
 
-    mbedtls_md_init(&rpk_ctx);
     mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
 
-    res = mbedtls_md_setup(&rpk_ctx, mdinfo, 0);
+    res = mbedtls_md_setup(&ctx, mdinfo, 0);
     assert_res(res == 0);
-    res = mbedtls_md_setup(&block_ctx, mdinfo, 0);
+    res = mbedtls_md_setup(&eocd_ctx, mdinfo, 0);
     assert_res(res == 0);
 
-    mbedtls_md_starts(&rpk_ctx);
-    prefix = 0x5a;
+    mbedtls_md_starts(&ctx);
 
     chunk_count += calc_chunk_count(&app_block->data_block);
     chunk_count += calc_chunk_count(&app_block->central_directory_block);
     chunk_count += calc_chunk_count(&app_block->eocd_block);
 
-    res = mbedtls_md_update(&rpk_ctx, &prefix, 1);
+    res = mbedtls_md_update(&ctx, &prefix, 1);
     assert_res(res == 0);
-    res = mbedtls_md_update(&rpk_ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
+    res = mbedtls_md_update(&ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
     assert_res(res == 0);
 
-    md_rpk_block(&rpk_ctx, fd, &app_block->data_block);
-    md_rpk_block(&rpk_ctx, fd, &app_block->central_directory_block);
+    md_file_block(&ctx, fd, &app_block->data_block);
+    md_file_block(&ctx, fd, &app_block->central_directory_block);
 
     // Modify central directory offset
     prefix = 0xa5;
-    buff = malloc(app_block->eocd_block.length);
-    assert_res(buff != NULL);
-    mbedtls_md_starts(&block_ctx);
-    lseek(fd, (uintptr_t)app_block->eocd_block.data, SEEK_SET);
-    read(fd, buff, app_block->eocd_block.length);
-    memcpy(buff + 16, &app_block->data_block.length, sizeof(uint32_t));
-    mbedtls_md_update(&block_ctx, (const unsigned char*)&prefix, 1);
-    mbedtls_md_update(&block_ctx, (const unsigned char*)&app_block->eocd_block.length, sizeof(uint32_t));
-    mbedtls_md_update(&block_ctx, (const unsigned char*)buff, app_block->eocd_block.length);
-    mbedtls_md_finish(&block_ctx, md);
-    mbedtls_md_update(&rpk_ctx, md, sizeof(md));
+    buf = malloc(app_block->eocd_block.length);
+    assert_res(buf != NULL);
+    mbedtls_md_starts(&eocd_ctx);
+    res = lseek(fd, (intptr_t)app_block->eocd_block.data, SEEK_SET);
+    assert_res(res == (intptr_t)app_block->eocd_block.data);
+    res = read(fd, buf, app_block->eocd_block.length);
+    assert_res(res == app_block->eocd_block.length);
+    memcpy(buf + 16, &app_block->data_block.length, sizeof(uint32_t));
+    mbedtls_md_update(&eocd_ctx, &prefix, 1);
+    mbedtls_md_update(&eocd_ctx, (const unsigned char*)&app_block->eocd_block.length, sizeof(uint32_t));
+    mbedtls_md_update(&eocd_ctx, buf, app_block->eocd_block.length);
+    mbedtls_md_finish(&eocd_ctx, md);
+    mbedtls_md_update(&ctx, md, sizeof(md));
 
-    mbedtls_md_finish(&rpk_ctx, md);
-
-    mbedtls_md_free(&rpk_ctx);
-    mbedtls_md_free(&block_ctx);
+    mbedtls_md_finish(&ctx, md);
 
     res = memcmp(digest->data, md, sizeof(md));
     assert_res(res == 0);
 
 error:
-    free(buff);
+    mbedtls_md_free(&ctx);
+    mbedtls_md_free(&eocd_ctx);
+
+    free(buf);
     close(fd);
+
     return res;
 }
 
-int certificate_verify(signature_block_t* certificate, const char* path)
+static int verify_certificate(signature_block_t* certificate, const char* path)
 {
 
+    data_block_t* cert = &certificate->certificate;
     int fd = -1, res = -1;
-    char* buff = NULL;
-    struct stat st;
-    data_block_t cert;
+    char* buf;
 
-    assert_res(certificate != NULL);
-    assert_res(path != NULL);
+    buf = malloc(cert->length);
+    assert_res(buf != NULL);
 
-    res = access(path, F_OK);
-    assert_res(res == 0);
-
-    res = stat(path, &st);
-    assert_res(res == 0);
-    cert = certificate->certificate;
-
-    res = -1;
-    assert_res(st.st_size == cert.length);
-
-    res = -1;
-    buff = malloc(cert.length);
-    assert_res(buff != NULL);
-
-    res = -1;
     fd = open(path, O_RDONLY);
-    assert_res(fd > 0);
-    res = read(fd, buff, certificate->certificate.length);
-    assert_res(res > 0);
+    assert_res(fd >= 0);
+    res = read(fd, buf, cert->length);
+    assert_res(res == cert->length);
 
-    res = memcmp(cert.data, buff, cert.length);
+    res = memcmp(cert->data, buf, cert->length);
     assert_res(res == 0);
 
 error:
-    free(buff);
+    free(buf);
     close(fd);
     return res;
 }
 
-int publickey_verify(data_block_t* pubkey, data_block_t* certificate)
+static int verify_publickey(data_block_t* pubkey, data_block_t* certificate)
 {
     mbedtls_x509_crt cert;
     uint8_t* pkey_psa_start;
@@ -455,15 +429,15 @@ int publickey_verify(data_block_t* pubkey, data_block_t* certificate)
     int buflen;
     int res = -1;
 
-    buflen = pubkey->length + 1;
-    pkey_psa = malloc(buflen);
-    assert_res(pkey_psa != NULL);
-
     // Parse certificate
     mbedtls_x509_crt_init(&cert);
     res = mbedtls_x509_crt_parse(&cert, (const unsigned char*)certificate->data,
         certificate->length);
     assert_res(res == 0);
+
+    buflen = pubkey->length + 1;
+    pkey_psa = malloc(buflen);
+    assert_res(pkey_psa != NULL);
 
     // Get public key in der format from certificate
     res = mbedtls_pk_write_pubkey_der(&cert.pk, pkey_psa, buflen);
@@ -483,13 +457,13 @@ error:
 /**
  * @brief app Signature verification
  */
-static int app_verification(const char* app_path, const char* cert_path, size_t comment_len)
+static int verify_app(const char* app_path, const char* cert_path, size_t comment_len)
 {
     int res = -1, fd = -1;
     uint64_t id;
     uint8_t* offset;
     app_block_t* app_block = NULL;
-    char* signature_block_data = NULL;
+    uint8_t* signature_block_data = NULL;
     data_block_t signature_data;
     signature_block_t signature_info;
 
@@ -500,34 +474,32 @@ static int app_verification(const char* app_path, const char* cert_path, size_t 
     // parse Signing Block
     signature_block_data = malloc(app_block->signature_block.length);
     assert_res(signature_block_data != NULL);
-    res = -1;
     fd = open(app_path, O_RDONLY);
     assert_res(fd > 0);
     lseek(fd, (uintptr_t)app_block->signature_block.data, SEEK_SET);
     read(fd, signature_block_data, app_block->signature_block.length);
 
-    parse_kv_block((uint8_t*)(signature_block_data + 8), &id, &offset);
+    parse_kv_block(signature_block_data, &id, &offset);
     parse_block(offset, &signature_data);
     get_signature_info(signature_data.data, &signature_info);
 
+    // Compare whether the signature algorithms are consistent
+    assert_res(signature_info.digests_signatures_algorithm_id == signature_info.signatures_algorithm_id);
+
     // Verify block signature
-    res = verify_block_signature(&signature_info.public_key, &signature_info.signed_data,
+    res = verify_signature(&signature_info.public_key, &signature_info.signed_data,
         &signature_info.signatures_content);
     assert_res(res == 0);
 
-    // Compare whether the signature algorithms are consistent
-    res = -1;
-    assert_res(signature_info.digests_signatures_algorithm_id == signature_info.signatures_algorithm_id);
-
     // Compare whether the app summary is consistent with the signature block summary
-    res = app_block_digest_verification(app_path, app_block, &signature_info.one_digest);
+    res = verify_digest(app_path, app_block, &signature_info.one_digest);
     assert_res(res == 0);
 
-    res = certificate_verify(&signature_info, cert_path);
+    res = verify_certificate(&signature_info, cert_path);
     assert_res(res == 0);
 
     // Verify the public key
-    res = publickey_verify(&signature_info.public_key, &signature_info.certificate);
+    res = verify_publickey(&signature_info.public_key, &signature_info.certificate);
     assert_res(res == 0);
 
 error:
@@ -553,7 +525,7 @@ static int verify(const char* app_path, const char* cert_path)
     assert_res(res == UNZ_OK);
 
     // Verify app legitimacy
-    res = app_verification(app_path, cert_path, zGlobalInfo.size_comment);
+    res = verify_app(app_path, cert_path, zGlobalInfo.size_comment);
     assert_res(res == 0);
 
 error:
@@ -562,7 +534,7 @@ error:
 
 int main(int argc, char* argv[])
 {
-    int res = 0;
+    int res;
     const char* file;
     const char* cert;
 
@@ -573,14 +545,14 @@ int main(int argc, char* argv[])
 
     file = argv[1];
     res = access(file, F_OK);
-    assert_res((0 == res), "File not found");
+    assert_res(0 == res, "File not found");
 
     cert = argv[2];
     res = access(cert, F_OK);
-    assert_res((0 == res), "Cert not found");
+    assert_res(0 == res, "Cert not found");
 
     res = verify(file, cert);
-    assert_res((0 == res), "File verify failed");
+    assert_res(0 == res, "File verify failed");
 
 error:
     return res;
