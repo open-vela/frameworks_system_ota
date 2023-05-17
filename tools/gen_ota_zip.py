@@ -590,7 +590,7 @@ will bin size will multiply speed then calculate progress''')
 
     if os.path.exists(args.output):
         inputstr = input("The %s already exists,will cover it? [Y/N]\n" % args.output)
-        if inputstr != 'Y':
+        if inputstr != 'Y' and inputstr != 'y':
             exit()
 
     if len((args.bin_path)) == 2:
