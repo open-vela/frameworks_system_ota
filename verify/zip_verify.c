@@ -21,10 +21,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <mbedtls/base64.h>
-#include <mbedtls/md.h>
-#include <mbedtls/pk.h>
-#include <mbedtls/x509_crt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +28,9 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <unzip.h>
+
+#include <avb_rsa.h>
+#include <avb_sha.h>
 
 #define DIGESTED_CHUNK_MAX_SIZE (1024 * 1024)
 
@@ -232,74 +231,58 @@ static uint8_t* get_signature_info(uint8_t* data, signature_block_t* info)
  */
 static int verify_signature(data_block_t* pubkey, data_block_t* raw_data, data_block_t* signature)
 {
-    int res;
-    const mbedtls_md_info_t* mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    unsigned char md[mbedtls_md_get_size(mdinfo)];
-    mbedtls_pk_context pk;
+    int res = -1;
+    uint8_t* computed_hash;
+    AvbSHA256Ctx sha256_ctx;
+    const AvbAlgorithmData* algorithm;
 
-    // Initialize public key
-    mbedtls_pk_init(&pk);
-    res = mbedtls_pk_parse_public_key(&pk, pubkey->data, pubkey->length);
-    assert_res(res == 0);
+    algorithm = avb_get_algorithm_data(AVB_ALGORITHM_TYPE_SHA256_RSA2048);
+    assert_res(algorithm);
 
-    // Generate data digest
-    res = mbedtls_md(mdinfo, raw_data->data, raw_data->length, md);
-    assert_res(res == 0);
+    avb_sha256_init(&sha256_ctx);
+    avb_sha256_update(
+        &sha256_ctx, raw_data->data, raw_data->length);
+    computed_hash = avb_sha256_final(&sha256_ctx);
 
-    // Verify signature
-    res = mbedtls_pk_verify(&pk, mbedtls_md_get_type(mdinfo),
-        md, mbedtls_md_get_size(mdinfo), signature->data, signature->length);
-    assert_res(res == 0);
+    res = !avb_rsa_verify(pubkey->data, pubkey->length,
+        signature->data, signature->length,
+        computed_hash, algorithm->hash_len,
+        algorithm->padding, algorithm->padding_len);
 
 error:
-    mbedtls_pk_free(&pk);
     return res;
 }
 
 static int md_one_chunk(int fd, data_block_t* block, unsigned char* output)
 {
-    int res;
     size_t sum = 0;
-    mbedtls_md_context_t ctx;
+    AvbSHA256Ctx ctx;
     unsigned char buf[1024], prefix = 0xa5;
-    const mbedtls_md_info_t* mdinfo;
+    avb_sha256_init(&ctx);
 
-    mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    mbedtls_md_init(&ctx);
-
-    res = mbedtls_md_setup(&ctx, mdinfo, 0);
-    assert_res(res == 0);
-
-    res = mbedtls_md_starts(&ctx);
-    assert_res(res == 0);
-
-    res = mbedtls_md_update(&ctx, &prefix, 1);
-    assert_res(res == 0);
-    res = mbedtls_md_update(&ctx, (const unsigned char*)&block->length, sizeof(uint32_t));
-    assert_res(res == 0);
+    avb_sha256_update(&ctx, &prefix, 1);
+    avb_sha256_update(&ctx, (const unsigned char*)&block->length, sizeof(uint32_t));
     lseek(fd, (uintptr_t)block->data, SEEK_SET);
 
     while (sum < block->length) {
-        size_t read_len = block->length - sum;
+        ssize_t read_len = block->length - sum;
         if (read_len > sizeof(buf))
             read_len = sizeof(buf);
-        res = read(fd, buf, read_len);
-        assert_res(res > 0);
-        sum += res;
+        read_len = read(fd, buf, read_len);
+        assert_res(read_len > 0);
+        sum += read_len;
 
-        res = mbedtls_md_update(&ctx, buf, res);
-        assert_res(res == 0);
+        avb_sha256_update(&ctx, buf, read_len);
     }
 
-    res = mbedtls_md_finish(&ctx, output);
-    assert_res(res == 0);
+    memcpy(output, avb_sha256_final(&ctx), AVB_SHA256_DIGEST_SIZE);
+    return 0;
 
 error:
-    mbedtls_md_free(&ctx);
-    return res;
+    return -1;
 }
 
-static int md_file_block(mbedtls_md_context_t* ctx, int fd, data_block_t* block)
+static int md_file_block(AvbSHA256Ctx* ctx, int fd, data_block_t* block)
 {
     int res = -1;
     data_block_t chunk;
@@ -318,8 +301,7 @@ static int md_file_block(mbedtls_md_context_t* ctx, int fd, data_block_t* block)
 
         res = md_one_chunk(fd, &chunk, md);
         assert_res(res == 0);
-        res = mbedtls_md_update(ctx, md, sizeof(md));
-        assert_res(res == 0);
+        avb_sha256_update(ctx, md, sizeof(md));
     }
 
     return 0;
@@ -335,33 +317,21 @@ static int verify_digest(const char* path, app_block_t* app_block, data_block_t*
 {
     int res = -1;
     int chunk_count = 0;
-    unsigned char md[32], *buf = NULL, prefix = 0x5a;
-    const mbedtls_md_info_t* mdinfo;
-    mbedtls_md_context_t ctx, eocd_ctx;
+    unsigned char *md, *buf = NULL, prefix = 0x5a;
+    AvbSHA256Ctx ctx, eocd_ctx;
 
-    mbedtls_md_init(&ctx);
-    mbedtls_md_init(&eocd_ctx);
+    avb_sha256_init(&ctx);
+    avb_sha256_init(&eocd_ctx);
 
     int fd = open(path, O_RDONLY);
     assert_res(fd >= 0);
-
-    mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-
-    res = mbedtls_md_setup(&ctx, mdinfo, 0);
-    assert_res(res == 0);
-    res = mbedtls_md_setup(&eocd_ctx, mdinfo, 0);
-    assert_res(res == 0);
-
-    mbedtls_md_starts(&ctx);
 
     chunk_count += calc_chunk_count(&app_block->data_block);
     chunk_count += calc_chunk_count(&app_block->central_directory_block);
     chunk_count += calc_chunk_count(&app_block->eocd_block);
 
-    res = mbedtls_md_update(&ctx, &prefix, 1);
-    assert_res(res == 0);
-    res = mbedtls_md_update(&ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
-    assert_res(res == 0);
+    avb_sha256_update(&ctx, &prefix, 1);
+    avb_sha256_update(&ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
 
     md_file_block(&ctx, fd, &app_block->data_block);
     md_file_block(&ctx, fd, &app_block->central_directory_block);
@@ -370,87 +340,27 @@ static int verify_digest(const char* path, app_block_t* app_block, data_block_t*
     prefix = 0xa5;
     buf = malloc(app_block->eocd_block.length);
     assert_res(buf != NULL);
-    mbedtls_md_starts(&eocd_ctx);
     res = lseek(fd, (intptr_t)app_block->eocd_block.data, SEEK_SET);
     assert_res(res == (intptr_t)app_block->eocd_block.data);
     res = read(fd, buf, app_block->eocd_block.length);
     assert_res(res == app_block->eocd_block.length);
     memcpy(buf + 16, &app_block->data_block.length, sizeof(uint32_t));
-    mbedtls_md_update(&eocd_ctx, &prefix, 1);
-    mbedtls_md_update(&eocd_ctx, (const unsigned char*)&app_block->eocd_block.length, sizeof(uint32_t));
-    mbedtls_md_update(&eocd_ctx, buf, app_block->eocd_block.length);
-    mbedtls_md_finish(&eocd_ctx, md);
-    mbedtls_md_update(&ctx, md, sizeof(md));
+    avb_sha256_update(&eocd_ctx, &prefix, 1);
+    avb_sha256_update(&eocd_ctx, (const unsigned char*)&app_block->eocd_block.length, sizeof(uint32_t));
+    avb_sha256_update(&eocd_ctx, buf, app_block->eocd_block.length);
+    md = avb_sha256_final(&eocd_ctx);
+    avb_sha256_update(&ctx, md, AVB_SHA256_DIGEST_SIZE);
 
-    mbedtls_md_finish(&ctx, md);
+    md = avb_sha256_final(&ctx);
 
-    res = memcmp(digest->data, md, sizeof(md));
+    res = memcmp(digest->data, md, AVB_SHA256_DIGEST_SIZE);
     assert_res(res == 0);
 
 error:
-    mbedtls_md_free(&ctx);
-    mbedtls_md_free(&eocd_ctx);
 
     free(buf);
     close(fd);
 
-    return res;
-}
-
-static int verify_certificate(signature_block_t* certificate, const char* path)
-{
-
-    data_block_t* cert = &certificate->certificate;
-    int fd = -1, res = -1;
-    char* buf;
-
-    buf = malloc(cert->length);
-    assert_res(buf != NULL);
-
-    fd = open(path, O_RDONLY);
-    assert_res(fd >= 0);
-    res = read(fd, buf, cert->length);
-    assert_res(res == cert->length);
-
-    res = memcmp(cert->data, buf, cert->length);
-    assert_res(res == 0);
-
-error:
-    free(buf);
-    close(fd);
-    return res;
-}
-
-static int verify_publickey(data_block_t* pubkey, data_block_t* certificate)
-{
-    mbedtls_x509_crt cert;
-    uint8_t* pkey_psa_start;
-    uint8_t* pkey_psa = NULL;
-    int buflen;
-    int res = -1;
-
-    // Parse certificate
-    mbedtls_x509_crt_init(&cert);
-    res = mbedtls_x509_crt_parse(&cert, (const unsigned char*)certificate->data,
-        certificate->length);
-    assert_res(res == 0);
-
-    buflen = pubkey->length + 1;
-    pkey_psa = malloc(buflen);
-    assert_res(pkey_psa != NULL);
-
-    // Get public key in der format from certificate
-    res = mbedtls_pk_write_pubkey_der(&cert.pk, pkey_psa, buflen);
-    assert_res(res == pubkey->length);
-
-    // mbedtls_pk_write_pubkey_der() writes backwards in the data buffer.
-    pkey_psa_start = pkey_psa + buflen - res;
-    res = memcmp(pubkey->data, pkey_psa_start, pubkey->length);
-    assert_res(res == 0);
-
-error:
-    mbedtls_x509_crt_free(&cert);
-    free(pkey_psa);
     return res;
 }
 
@@ -466,6 +376,8 @@ static int verify_app(const char* app_path, const char* cert_path, size_t commen
     uint8_t* signature_block_data = NULL;
     data_block_t signature_data;
     signature_block_t signature_info;
+    data_block_t avbkey;
+    struct stat buf;
 
     // get APK Signing Block
     app_block = parse_app_block(app_path, comment_len);
@@ -478,6 +390,7 @@ static int verify_app(const char* app_path, const char* cert_path, size_t commen
     assert_res(fd > 0);
     lseek(fd, (uintptr_t)app_block->signature_block.data, SEEK_SET);
     read(fd, signature_block_data, app_block->signature_block.length);
+    close(fd);
 
     parse_kv_block(signature_block_data, &id, &offset);
     parse_block(offset, &signature_data);
@@ -487,25 +400,29 @@ static int verify_app(const char* app_path, const char* cert_path, size_t commen
     assert_res(signature_info.digests_signatures_algorithm_id == signature_info.signatures_algorithm_id);
 
     // Verify block signature
-    res = verify_signature(&signature_info.public_key, &signature_info.signed_data,
+    res = stat(cert_path, &buf);
+    assert_res(res == 0);
+
+    fd = open(cert_path, O_RDONLY);
+    assert_res(fd > 0);
+    avbkey.data = malloc(buf.st_size);
+    avbkey.length = read(fd, avbkey.data, buf.st_size);
+    close(fd);
+
+    res = verify_signature(&avbkey, &signature_info.signed_data,
         &signature_info.signatures_content);
+    free(avbkey.data);
     assert_res(res == 0);
 
     // Compare whether the app summary is consistent with the signature block summary
     res = verify_digest(app_path, app_block, &signature_info.one_digest);
     assert_res(res == 0);
 
-    res = verify_certificate(&signature_info, cert_path);
-    assert_res(res == 0);
-
-    // Verify the public key
-    res = verify_publickey(&signature_info.public_key, &signature_info.certificate);
-    assert_res(res == 0);
-
 error:
-    close(fd);
-    free(signature_block_data);
-    free(app_block);
+    if (signature_block_data)
+        free(signature_block_data);
+    if (app_block)
+        free(app_block);
     return res;
 }
 
@@ -539,7 +456,7 @@ int main(int argc, char* argv[])
     const char* cert;
 
     if (argc != 3) {
-        printf("%s <file> <cert>\n", argv[0]);
+        printf("%s <file> <avbkey>\n", argv[0]);
         return -EINVAL;
     }
 
