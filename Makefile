@@ -46,8 +46,12 @@ PROGNAME += $(CONFIG_UTILS_ZIP_VERIFY_PROGNAME)
 PRIORITY += $(CONFIG_UTILS_ZIP_VERIFY_PRIORITY)
 STACKSIZE += $(CONFIG_UTILS_ZIP_VERIFY_STACKSIZE)
 MODULE = $(CONFIG_UTILS_ZIP_VERIFY)
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/avb/avb
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/avb/avb/libavb
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/avb/avb/libavb/sha
 CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib/contrib/minizip
 CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/external/zlib/zlib
+CFLAGS += -DAVB_COMPILATION
 MAINSRC += verify/zip_verify.c
 endif
 

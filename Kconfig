@@ -40,7 +40,7 @@ endif
 config UTILS_ZIP_VERIFY
 	tristate "OTA image verify"
 	default n
-	depends on CRYPTO_MBEDTLS
+	depends on LIB_AVB && LIB_AVB_SHA256
 	depends on LIB_ZLIB
 	---help---
 		This option will enable a upgrade package verify.
