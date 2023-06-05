@@ -489,7 +489,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-c','--cert',\
                         help='cert path,The private key is in x509.pem format ',\
-                        default='keys/certificate_x509.pem')
+                        default='keys/key.x509.pem')
 
     parser.add_argument('--sign',\
                         help='sign ota.zip and be named sign_ota.zip',
