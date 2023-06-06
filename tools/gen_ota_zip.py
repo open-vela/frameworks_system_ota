@@ -143,16 +143,45 @@ then
     fd.write(str)
 
     i = 0
+    str = \
+'''
+    set active_slot `getprop persist.ota.active_slot`
+    if [ $active_slot == A ]
+    then
+        set toupdatedev "/dev/ota_b"
+        set tobootdev B
+    else
+        set toupdatedev "/dev/ota"
+        set tobootdev A
+    fi
+    echo $toupdatedev
+    echo $tobootdev
+'''
+    fd.write(str)
     while i < bin_list_cnt:
-
-        if bin_list[i] in args.ab:
-            patch_tmp = patch_path[i] + '_b'
-        else:
-            patch_tmp = patch_path[i]
-
         str = \
 '''
     echo "generate %s"%s
+'''% (bin_list[i], args.otalog)
+        fd.write(str)
+        if bin_list[i] == "vela_ota.bin":
+            str = \
+'''
+    ddelta_apply $toupdatedev %s/ /ota/%spatch
+    if [ $? -ne 0 ]
+    then
+        echo "ddelta_apply %s failed"%s
+        setprop ota.progress.current -1
+        exit
+    fi
+    setprop persist.ota.active_slot $tobootdev
+    setprop ota.progress.current %d
+''' % (args.ota_tmp, bin_list[i][:-3],
+        bin_list[i][:-4], args.otalog,
+        ota_progress_list[i])
+        else:
+            str = \
+'''
     time "ddelta_apply %s %s/ /ota/%spatch"
     if [ $? -ne 0 ]
     then
@@ -162,8 +191,7 @@ then
     fi
 
     setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog,
-       patch_tmp, args.ota_tmp, bin_list[i][:-3],
+''' % (patch_path[i], args.ota_tmp, bin_list[i][:-3],
        bin_list[i][:-4], args.otalog,
        ota_progress_list[i])
         if i + 1 < bin_list_cnt:
@@ -209,12 +237,6 @@ setprop ota.progress.current %d
         str = "setprop ota.progress.current 100\n"
         fd.write(str)
 
-    str = \
-'''
-setprop ota.progress.current 100
-'''
-    fd.write(str)
-
     fd.close()
 
 def gen_diff_ota(args):
@@ -224,18 +246,6 @@ def gen_diff_ota(args):
     for old_files in os.walk("%s" % (args.bin_path[0])):pass
 
     for new_files in os.walk("%s" % (args.bin_path[1])):pass
-
-    ab_flag = False
-    if args.ab:
-        logger.debug(args.ab)
-        for ab_file in args.ab:
-            if ab_file not in old_files[2] or ab_file not in new_files[2]:
-                logger.error("%s not in %s or %s" % (ab_file, args.bin_path[0], args.bin_path[1]))
-                exit(-1)
-            if filecmp.cmp("%s/%s" % (args.bin_path[0], ab_file), "%s/%s" % (args.bin_path[1], ab_file), shallow=False) != True:
-                ab_flag = True
-    else:
-        args.ab = []
 
     if len(old_files[2]) == 0 or len(new_files[2]) == 0:
         logger.error("No file in the path")
@@ -259,7 +269,7 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                old_files[2][i][-4:] == '.bin' and \
-               (filecmp.cmp(oldfile, newfile, shallow=False) != True or old_files[2][i] in args.ab and ab_flag):
+               (filecmp.cmp(oldfile, newfile, shallow=False) != True):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
                 if args.blksz == '0':
@@ -384,17 +394,47 @@ fi
         fd.write(str)
         i += 1
 
+    i = 0
     str = \
 '''
-echo -e -n "a" > %s/dd
-''' % (args.ota_tmp)
+set active_slot `getprop persist.ota.active_slot`
+if [ $active_slot == A ]
+then
+    set toupdatedev "/dev/ota_b"
+    set tobootdev B
+else
+    set toupdatedev "/dev/ota"
+    set tobootdev A
+fi
+echo $toupdatedev
+echo $tobootdev
+'''
     fd.write(str)
-
-    i = 0
     while i < path_cnt:
         str =\
 '''
 echo "install %s"%s
+''' % (bin_list[i], args.otalog)
+        fd.write(str)
+        if bin_list[i] == "vela_ota.bin":
+            str =\
+'''
+dd if=/ota/%s of=$toupdatedev bs=%s
+if [ $? -ne 0 ]
+then
+    echo "dd %s failed"%s
+    reboot 1
+fi
+setprop persist.ota.active_slot $tobootdev
+setprop ota.progress.current %d
+''' % (bin_list[i], args.bs,
+       bin_list[i], args.otalog, ota_progress_list[i])
+            if i + 1 < path_cnt:
+                str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
+            fd.write(str)
+        else:
+            str =\
+'''
 time " dd if=/ota/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
@@ -402,12 +442,11 @@ then
     reboot 1
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog,
-       bin_list[i], path_list[i], args.bs,
+''' % (bin_list[i], path_list[i], args.bs,
        bin_list[i], args.otalog, ota_progress_list[i])
-        if i + 1 < path_cnt:
-            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
-        fd.write(str)
+            if i + 1 < path_cnt:
+                str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
+            fd.write(str)
         i += 1
 
     if args.user_end_script:
@@ -524,10 +563,6 @@ if __name__ == "__main__":
     parser.add_argument("--otalog",
                         help="save log /dev/log or a normal file",
                         default='')
-
-    parser.add_argument("--ab",
-                        help="mark A/B in diff ota upgrade",
-                        nargs='*')
 
     parser.add_argument("--version",
                         help="set a version number to prevent downgrade",
