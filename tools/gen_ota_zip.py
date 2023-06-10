@@ -143,45 +143,10 @@ then
     fd.write(str)
 
     i = 0
-    str = \
-'''
-    set active_slot `getprop persist.ota.active_slot`
-    if [ $active_slot == A ]
-    then
-        set toupdatedev "/dev/ota_b"
-        set tobootdev B
-    else
-        set toupdatedev "/dev/ota"
-        set tobootdev A
-    fi
-    echo $toupdatedev
-    echo $tobootdev
-'''
-    fd.write(str)
     while i < bin_list_cnt:
         str = \
 '''
     echo "generate %s"%s
-'''% (bin_list[i], args.otalog)
-        fd.write(str)
-        if bin_list[i] == "vela_ota.bin":
-            str = \
-'''
-    ddelta_apply $toupdatedev %s/ /ota/%spatch
-    if [ $? -ne 0 ]
-    then
-        echo "ddelta_apply %s failed"%s
-        setprop ota.progress.current -1
-        exit
-    fi
-    setprop persist.ota.active_slot $tobootdev
-    setprop ota.progress.current %d
-''' % (args.ota_tmp, bin_list[i][:-3],
-        bin_list[i][:-4], args.otalog,
-        ota_progress_list[i])
-        else:
-            str = \
-'''
     time "ddelta_apply %s %s/ /ota/%spatch"
     if [ $? -ne 0 ]
     then
@@ -191,7 +156,8 @@ then
     fi
 
     setprop ota.progress.current %d
-''' % (patch_path[i], args.ota_tmp, bin_list[i][:-3],
+''' % (bin_list[i], args.otalog,
+       patch_path[i], args.ota_tmp, bin_list[i][:-3],
        bin_list[i][:-4], args.otalog,
        ota_progress_list[i])
         if i + 1 < bin_list_cnt:
@@ -214,7 +180,7 @@ time "dd if=/ota/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
-    reboot 1
+    reboot
 fi
 setprop ota.progress.current %d
 ''' %(file, args.otalog, file,'/dev/' + file[5:-4],
@@ -279,9 +245,12 @@ def gen_diff_ota(args):
                 if (ret != 0):
                     logger.error("ddelta_generate error")
                     exit(ret)
-                ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
-                patch_path.append('/dev/' + old_files[2][i][5:-4])
-                bin_list.append(old_files[2][i])
+                if new_files[2][j][5:8] != 'ota':
+                    ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
+                    patch_path.append('/dev/' + old_files[2][i][5:-4])
+                    bin_list.append(old_files[2][i])
+                else:
+                    ota_zip.write(newfile, new_files[2][j])
 
     for file in newpartition_list:
         logger.debug("add %s",file)
@@ -395,58 +364,23 @@ fi
         i += 1
 
     i = 0
-    str = \
-'''
-set active_slot `getprop persist.ota.active_slot`
-if [ $active_slot == A ]
-then
-    set toupdatedev "/dev/ota_b"
-    set tobootdev B
-else
-    set toupdatedev "/dev/ota"
-    set tobootdev A
-fi
-echo $toupdatedev
-echo $tobootdev
-'''
-    fd.write(str)
     while i < path_cnt:
         str =\
 '''
 echo "install %s"%s
-''' % (bin_list[i], args.otalog)
-        fd.write(str)
-        if bin_list[i] == "vela_ota.bin":
-            str =\
-'''
-dd if=/ota/%s of=$toupdatedev bs=%s
-if [ $? -ne 0 ]
-then
-    echo "dd %s failed"%s
-    reboot 1
-fi
-setprop persist.ota.active_slot $tobootdev
-setprop ota.progress.current %d
-''' % (bin_list[i], args.bs,
-       bin_list[i], args.otalog, ota_progress_list[i])
-            if i + 1 < path_cnt:
-                str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
-            fd.write(str)
-        else:
-            str =\
-'''
 time " dd if=/ota/%s of=%s bs=%s"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
-    reboot 1
+    reboot
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], path_list[i], args.bs,
+''' % (bin_list[i], args.otalog,
+       bin_list[i], path_list[i], args.bs,
        bin_list[i], args.otalog, ota_progress_list[i])
-            if i + 1 < path_cnt:
-                str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
-            fd.write(str)
+        if i + 1 < path_cnt:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
+        fd.write(str)
         i += 1
 
     if args.user_end_script:
@@ -473,8 +407,9 @@ def gen_full_ota(args):
             newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
             logger.debug("add %s" % newfile)
             ota_zip.write(newfile, new_files[2][i])
-            patch_path.append('/dev/' + new_files[2][i][5:-4])
-            bin_list.append(new_files[2][i])
+            if new_files[2][i][5:8] != 'ota':
+                patch_path.append('/dev/' + new_files[2][i][5:-4])
+                bin_list.append(new_files[2][i])
 
     for file in bin_list:
         speed_dict[file] = 1.0
