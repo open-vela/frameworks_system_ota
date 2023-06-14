@@ -42,14 +42,17 @@ __help(){
 }
 help(){
   echo -e "Usage: $0 <image2sign> <partition_size>" \
-          "[-a algorithm] [-k key_path]\n\nOptions:"
+          "[options]\n"
   _help "<image2sign>" "Image path, eg: ./${PREFIX}ota${SURFIX}"
   __help "Prefix" $PREFIX
   __help "Surfix" $SURFIX
   _help "<partition_size>" "Partition size (*$KSIZE)"
+  echo -e "\nOptions:"
   _help "[-a algorithm]" "Algorithm of sign, ${DEFAULT_ALG} by default"
   printf "      %-12s   %s" "Supported" && echo "${SUPPORTED_ALG[@]}"
   _help "[-k key_path]" "Path of private key, ${DEFAULT_KEY} by default"
+  _help "[-o options]" "Option(s) append to avbtool"
+  __help "--padding_ff" "Padding 0xff for DO_NOT_CARE area"
   exit 1
 }
 check_e(){
@@ -76,13 +79,16 @@ fi
 IMAGE2SIGN=$1
 PARTITION_SIZE=$(($2 * $KSIZE)) # KB -> B # TODO : Get from partition table
 shift; shift
-while getopts "k:a:" opt ; do
+while getopts "k:a:o:" opt ; do
   case $opt in
     k)
       IN_PRIVKEY=$OPTARG
       ;;
     a)
       ALGORITHM=$OPTARG
+      ;;
+    o)
+      OPTIONS=(${OPTIONS[@]} $OPTARG)
       ;;
     ?)
       help
@@ -114,11 +120,12 @@ printvar PARTITION_SIZE "bytes"
 printvar DEV_PATH
 printvar IN_PRIVKEY
 printvar ALGORITHM
+[[ ${#OPTIONS[@]} -gt 0 ]] && printf "%-16s : " OPTIONS && echo "${OPTIONS[@]}"
 
 # Sign
 $AVBTOOL add_hash_footer --image $IMAGE2SIGN \
         --partition_size $PARTITION_SIZE \
         --partition_name $DEV_PATH \
-        --key $IN_PRIVKEY --algorithm $ALGORITHM
+        --key $IN_PRIVKEY --algorithm $ALGORITHM ${OPTIONS[@]}
 
 echo -e "Result: \e[1;37mSUCC\e[0m"
