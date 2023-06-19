@@ -27,8 +27,8 @@ STACKSIZE += $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_OTA_UI)
 CSRCS += ui/extra/lv_upgrade.c ui/ui_config_parse.c ui/ui_display.c
 MAINSRC += ui/ui_ota.c
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/frameworks/kvdb}
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(APPDIR)/netutils/cjson/cJSON}
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/frameworks/kvdb
+CFLAGS += ${INCDIR_PREFIX}$(APPDIR)/netutils/cjson/cJSON
 endif
 
 ifneq ($(CONFIG_UTILS_AVB_VERIFY),)
