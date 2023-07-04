@@ -22,8 +22,8 @@ include $(APPDIR)/Make.defs
 
 ifneq ($(CONFIG_OTA_UI),)
 PROGNAME += otaUI
-PRIORITY += SCHED_PRIORITY_DEFAULT
-STACKSIZE += $(CONFIG_DEFAULT_TASK_STACKSIZE)
+PRIORITY += $(CONFIG_OTA_UI_PRIORITY)
+STACKSIZE += $(CONFIG_OTA_UI_STACKSIZE)
 MODULE = $(CONFIG_OTA_UI)
 CSRCS += ui/extra/lv_upgrade.c ui/ui_config_parse.c ui/ui_display.c
 MAINSRC += ui/ui_ota.c

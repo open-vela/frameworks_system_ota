@@ -20,6 +20,18 @@ config OTA_UI_FINISH_EXEC_CMD
 	string "OTA UI end exec command"
 	default "reboot 0"
 
+config OTA_UI_STACKSIZE
+	int "OTA UI stack size"
+	default 4096
+	---help---
+		The stack size to use the otaUI task.  Default: 4096
+
+config OTA_UI_PRIORITY
+	int "OTA UI task priority"
+	default 100
+	---help---
+		The priority to use the otaUI task.  Default: 100
+
 endif
 
 config UTILS_AVB_VERIFY
