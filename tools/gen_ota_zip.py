@@ -297,7 +297,7 @@ def gen_diff_ota(args):
         if (ret != 0) :
             logger.error("sign error")
             exit(ret)
-        logger.info("%s,signature success" % sign_output)
+        logger.info("%s, signature success!" % args.output)
         os.rename(sign_output, args.output)
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
@@ -452,7 +452,7 @@ def gen_full_ota(args):
         if (ret != 0) :
             logger.error("sign error")
             exit(ret)
-        logger.info("%s,signature success" % sign_output)
+        logger.info("%s, signature success!" % args.output)
         os.rename(sign_output, args.output)
 
 if __name__ == "__main__":
