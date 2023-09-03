@@ -298,6 +298,7 @@ def gen_diff_ota(args):
             logger.error("sign error")
             exit(ret)
         logger.info("%s,signature success" % sign_output)
+        os.rename(sign_output, args.output)
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
     path_cnt = len(path_list)
@@ -452,6 +453,7 @@ def gen_full_ota(args):
             logger.error("sign error")
             exit(ret)
         logger.info("%s,signature success" % sign_output)
+        os.rename(sign_output, args.output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=program_description,\
@@ -466,7 +468,7 @@ if __name__ == "__main__":
                         default='keys/key.x509.pem')
 
     parser.add_argument('--sign',\
-                        help='sign ota.zip and be named sign_ota.zip',
+                        help='sign ota.zip',
                         action='store_true',
                         default=False)
 
