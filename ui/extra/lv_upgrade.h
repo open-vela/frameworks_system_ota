@@ -41,7 +41,7 @@ typedef struct {
 typedef struct {
     lv_obj_t obj;
     lv_upgrade_type_e type;
-    lv_draw_img_dsc_t img_dsc;
+    lv_draw_image_dsc_t image_dsc;
     void* image_percent_sign;
     uint8_t image_array_size;
     image_data_t** image_array;
@@ -71,35 +71,35 @@ lv_obj_t* lv_upgrade_create(lv_obj_t* parent);
  * Set upgrade type of lv_upgrade_type_e
  * @param obj pointer to a upgrade object
  * @param type upgrade show type
-*/
+ */
 void lv_upgrade_set_type(lv_obj_t* obj, lv_upgrade_type_e type);
 
 /**
  * Set upgrade animation fps
  * @param obj pointer to a upgrade object
  * @param fps if upgrade type set 'animation', fps is vailed in animation, default 30
-*/
+ */
 void lv_upgrade_set_animation_fps(lv_obj_t* obj, int fps);
 
 /**
  * Set upgrade circle animation radius
  * @param obj pointer to a upgrade object
  * @param radius when upgrade type set 'custom_anim', radius set animation size
-*/
+ */
 void lv_upgrade_set_animation_radius(lv_obj_t* obj, int radius);
 
 /**
  * Set percent sign image file path
  * @param obj pointer to a upgrade object
  * @param file_path pointer to file path
-*/
+ */
 void lv_upgrade_set_percent_sign_image(lv_obj_t* obj, const char* file_path);
 
 /**
  * Set upgrade image buff size
  * @param obj pointer to a upgrade object
  * @param size image buffer array size
-*/
+ */
 void lv_upgrade_set_image_array_size(lv_obj_t* obj, int size);
 
 /**
@@ -107,7 +107,7 @@ void lv_upgrade_set_image_array_size(lv_obj_t* obj, int size);
  * @param obj pointer to a upgrade object
  * @param key image file key, in num mode rely to lv_upgrade_set_image_array_size value
  * @param file_path image file path
-*/
+ */
 void lv_upgrade_set_image_data(lv_obj_t* obj, int key, const char* file_path);
 
 /**
@@ -121,7 +121,7 @@ void lv_upgrade_set_progress(lv_obj_t* obj, uint32_t value);
  * Get the value of the upgrade
  * @param obj pointer to a upgrade object
  * @return return value of current upgrade
-*/
+ */
 uint32_t lv_upgrade_get_value(lv_obj_t* obj);
 
 #ifdef __cplusplus

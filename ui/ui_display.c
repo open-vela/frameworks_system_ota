@@ -87,9 +87,16 @@ ui_result_code_e ui_refresh_page_progress(lv_obj_t* lv_page, uint32_t value)
 
 ui_result_code_e ui_init()
 {
+    lv_nuttx_dsc_t info;
+    lv_nuttx_result_t result;
+
     lv_init();
 
-    lv_porting_init();
+    lv_nuttx_dsc_init(&info);
+    info.fb_path = CONFIG_LV_FBDEV_INTERFACE_DEFAULT_DEVICEPATH;
+    info.input_path = CONFIG_LV_TOUCHPAD_INTERFACE_DEFAULT_DEVICEPATH;
+
+    lv_nuttx_init(&info, &result);
 
     return UI_SUCCESS;
 }
