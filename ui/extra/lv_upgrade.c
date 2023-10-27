@@ -71,8 +71,8 @@ static void lv_upgrade_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
     lv_anim_init(&upgrade->anim);
     lv_anim_set_repeat_count(&upgrade->anim, LV_ANIM_REPEAT_INFINITE);
 
-    lv_draw_img_dsc_init(&upgrade->img_dsc);
-    lv_obj_init_draw_img_dsc(obj, LV_PART_MAIN, &upgrade->img_dsc);
+    lv_draw_image_dsc_init(&upgrade->image_dsc);
+    lv_obj_init_draw_image_dsc(obj, LV_PART_MAIN, &upgrade->image_dsc);
 }
 
 static void lv_upgrade_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
@@ -105,21 +105,21 @@ static void lv_upgrade_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
     lv_anim_del(upgrade->anim.var, upgrade->anim.exec_cb);
 }
 
-static lv_area_t lv_calc_draw_area(void* img_src, lv_area_t* coords)
+static lv_area_t lv_calc_draw_area(void* image_src, lv_area_t* coords)
 {
     uint32_t tmp_height = 0;
     lv_area_t res_area = { 0 };
-    lv_img_header_t header;
+    lv_image_header_t header;
 
-    if (!img_src) {
+    if (!image_src) {
         LV_LOG_ERROR("draw image data null !\n");
         return res_area;
     }
 
     tmp_height = coords->y2 - coords->y1;
-    lv_img_decoder_get_info(img_src, &header);
+    lv_image_decoder_get_info(image_src, &header);
 
-    /* interface "lv_draw_img" request coords end pos - 1 */
+    /* interface "lv_draw_image" request coords end pos - 1 */
     coords->x1 = coords->x2 - header.w;
     coords->x2 = coords->x2 - 1;
     coords->y1 = coords->y1 - 1;
@@ -182,17 +182,18 @@ static uint8_t lv_get_closest_element_index(lv_upgrade_t* upgrade, uint32_t valu
     return target_index;
 }
 
-static void lv_render_number_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
+static void lv_render_number_mode_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
 {
     uint8_t i;
     lv_area_t coords;
     image_data_t* image_data = NULL;
     lv_area_t draw_area = { 0 };
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
+    lv_draw_dsc_base_t* base_dsc = draw_task->draw_dsc;
 
     lv_area_copy(&coords, &obj->coords);
     draw_area = lv_calc_draw_area(upgrade->image_percent_sign, &coords);
-    lv_draw_img(draw_ctx, &upgrade->img_dsc, &draw_area, upgrade->image_percent_sign);
+    lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
     for (i = 0; i < LV_PROGRESS_DIGIT; i++) {
         if (upgrade->progress[i] < 0 || upgrade->progress[i] >= upgrade->image_array_size) {
             break;
@@ -202,11 +203,11 @@ static void lv_render_number_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx
             continue;
         }
         draw_area = lv_calc_draw_area(image_data->data, &coords);
-        lv_draw_img(draw_ctx, &upgrade->img_dsc, &draw_area, image_data->data);
+        lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
     }
 }
 
-static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
+static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
 {
     lv_area_t coords;
     uint32_t cur_progress = 0;
@@ -214,6 +215,7 @@ static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
     image_data_t* image_data = NULL;
     lv_area_t draw_area = { 0 };
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
+    lv_draw_dsc_base_t* base_dsc = draw_task->draw_dsc;
 
     lv_area_copy(&coords, &obj->coords);
     cur_progress = lv_upgrade_get_value((lv_obj_t*)upgrade);
@@ -225,14 +227,15 @@ static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
         return;
     }
     draw_area = lv_calc_draw_area(image_data->data, &coords);
-    lv_draw_img(draw_ctx, &upgrade->img_dsc, &draw_area, image_data->data);
+    lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
 }
 
-static void lv_render_anim_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
+static void lv_render_anim_mode_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
 {
     lv_area_t coords;
     lv_area_t draw_area = { 0 };
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
+    lv_draw_dsc_base_t* base_dsc = draw_task->draw_dsc;
 
     /* start animation */
     if (lv_anim_get(obj, (lv_anim_exec_xcb_t)lv_index_change) == NULL) {
@@ -246,10 +249,10 @@ static void lv_render_anim_mode_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
 
     lv_area_copy(&coords, &obj->coords);
     draw_area = lv_calc_draw_area(upgrade->anim_data, &coords);
-    lv_draw_img(draw_ctx, &upgrade->img_dsc, &draw_area, upgrade->anim_data);
+    lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
 }
 
-static void lv_render_custom_anim_content(lv_obj_t* obj, lv_draw_ctx_t* draw_ctx)
+static void lv_render_custom_anim_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
 {
 #if LV_USE_ARC != 0
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
@@ -278,31 +281,31 @@ static void lv_upgrade_event(const lv_obj_class_t* class_p, lv_event_t* e)
     /* Call the ancestor's event handler */
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_DRAW_MAIN) {
-        lv_draw_ctx_t* draw_ctx = lv_event_get_draw_ctx(e);
+        lv_draw_task_t* draw_task = lv_event_get_draw_task(e);
         lv_obj_t* obj = lv_event_get_target(e);
-        if (!draw_ctx || !obj) {
+        if (!draw_task || !obj) {
             return;
         }
         lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
         switch (upgrade->type) {
         case LV_UPGRADE_TYPE_NUM:
-            lv_render_number_mode_content(obj, draw_ctx);
+            lv_render_number_mode_content(obj, draw_task);
             break;
         case LV_UPGRADE_TYPE_BAR:
-            lv_render_bar_mode_content(obj, draw_ctx);
+            lv_render_bar_mode_content(obj, draw_task);
             break;
         case LV_UPGRADE_TYPE_CIRCLE:
-            upgrade->img_dsc.angle = rotation;
-            upgrade->img_dsc.pivot.x = (obj->coords.x2 - obj->coords.x1) / 2;
-            upgrade->img_dsc.pivot.y = (obj->coords.y2 - obj->coords.y1) / 2;
-            lv_render_anim_mode_content(obj, draw_ctx);
+            upgrade->image_dsc.rotation = rotation;
+            upgrade->image_dsc.pivot.x = (obj->coords.x2 - obj->coords.x1) / 2;
+            upgrade->image_dsc.pivot.y = (obj->coords.y2 - obj->coords.y1) / 2;
+            lv_render_anim_mode_content(obj, draw_task);
             rotation += 360 / upgrade->anim_fps;
             break;
         case LV_UPGRADE_TYPE_ANIM:
-            lv_render_anim_mode_content(obj, draw_ctx);
+            lv_render_anim_mode_content(obj, draw_task);
             break;
         case LV_UPGRADE_TYPE_CUSTOM_ANIM:
-            lv_render_custom_anim_content(obj, draw_ctx);
+            lv_render_custom_anim_content(obj, draw_task);
             break;
         default:
             break;
@@ -312,10 +315,10 @@ static void lv_upgrade_event(const lv_obj_class_t* class_p, lv_event_t* e)
 
 static void lv_calc_objs_size(void* obj_data, lv_area_t* objs_area)
 {
-    lv_img_header_t* img_head = (lv_img_header_t*)(obj_data);
-    if (img_head) {
-        objs_area->x2 = objs_area->x2 + img_head->w;
-        objs_area->y2 = LV_MAX(objs_area->y2 - objs_area->y1, img_head->h);
+    lv_image_header_t* image_head = (lv_image_header_t*)(obj_data);
+    if (image_head) {
+        objs_area->x2 = objs_area->x2 + image_head->w;
+        objs_area->y2 = LV_MAX(objs_area->y2 - objs_area->y1, image_head->h);
     }
 }
 
@@ -363,10 +366,10 @@ static void lv_calc_anim_mode_size(lv_upgrade_t* upgrade, lv_area_t* obj_area)
         if (!image_data) {
             continue;
         }
-        lv_img_header_t* img_head = (lv_img_header_t*)(image_data->data);
-        if (img_head) {
-            obj_area->x2 = LV_MAX(obj_area->x2 - obj_area->x1, img_head->w);
-            obj_area->y2 = LV_MAX(obj_area->y2 - obj_area->y1, img_head->h);
+        lv_image_header_t* image_head = (lv_image_header_t*)(image_data->data);
+        if (image_head) {
+            obj_area->x2 = LV_MAX(obj_area->x2 - obj_area->x1, image_head->w);
+            obj_area->y2 = LV_MAX(obj_area->y2 - obj_area->y1, image_head->h);
         }
     }
 }
@@ -412,17 +415,17 @@ static uint8_t* read_all_from_file(const char* path, uint32_t* data_size)
 static uint8_t* get_image_data_from_file(const char* path)
 {
     uint32_t data_size = 0;
-    uint8_t* img_buff = read_all_from_file(path, &data_size);
-    if (!img_buff) {
+    uint8_t* image_buff = read_all_from_file(path, &data_size);
+    if (!image_buff) {
         LV_LOG_ERROR("read file error !\n");
         return NULL;
     }
 
-    lv_img_dsc_t* dsc = (lv_img_dsc_t*)img_buff;
-    dsc->data_size = data_size - sizeof(lv_img_header_t);
-    dsc->data = img_buff + sizeof(lv_img_header_t);
+    lv_image_dsc_t* dsc = (lv_image_dsc_t*)image_buff;
+    dsc->data_size = data_size - sizeof(lv_image_header_t);
+    dsc->data = image_buff + sizeof(lv_image_header_t);
 
-    return img_buff;
+    return image_buff;
 }
 
 lv_obj_t* lv_upgrade_create(lv_obj_t* parent)

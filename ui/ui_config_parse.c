@@ -127,17 +127,17 @@ static uint8_t* read_all_from_file(const char* path, uint32_t* data_size)
 static uint8_t* get_image_data_from_file(const char* path)
 {
     uint32_t data_size = 0;
-    uint8_t* img_buff = read_all_from_file(path, &data_size);
-    if (!img_buff) {
+    uint8_t* image_buff = read_all_from_file(path, &data_size);
+    if (!image_buff) {
         UI_LOG_ERROR("ui read image file error.\n");
         return NULL;
     }
 
-    lv_img_dsc_t* dsc = (lv_img_dsc_t*)img_buff;
-    dsc->data_size = data_size - sizeof(lv_img_header_t);
-    dsc->data = img_buff + sizeof(lv_img_header_t);
+    lv_img_dsc_t* dsc = (lv_image_dsc_t*)image_buff;
+    dsc->data_size = data_size - sizeof(lv_image_header_t);
+    dsc->data = image_buff + sizeof(lv_image_header_t);
 
-    return img_buff;
+    return image_buff;
 }
 
 static int32_t json_area_parse(cJSON* node, lv_obj_t* lv_obj)
@@ -217,18 +217,18 @@ static int32_t json_align_parse(cJSON* node, lv_obj_t* lv_obj)
     return UI_SUCCESS;
 }
 
-static int32_t json_ui_image_set(lv_obj_t* lv_obj, const char* img_path)
+static int32_t json_ui_image_set(lv_obj_t* lv_obj, const char* image_path)
 {
-    uint8_t* img_buff = get_image_data_from_file(img_path);
-    if (!img_buff) {
+    uint8_t* image_buff = get_image_data_from_file(image_path);
+    if (!image_buff) {
         UI_LOG_ERROR("ui read image file error.\n");
         return UI_FILE_READ_ERROR;
     }
 
-    lv_img_set_src(lv_obj, (lv_img_dsc_t*)img_buff);
-    lv_img_set_offset_y(lv_obj, -1);
+    lv_image_set_src(lv_obj, (lv_image_dsc_t*)image_buff);
+    lv_image_set_offset_y(lv_obj, -1);
 
-    lv_obj->user_data = img_buff;
+    lv_obj->user_data = image_buff;
 
     return UI_SUCCESS;
 }
@@ -368,7 +368,7 @@ static int32_t json_label_parse(cJSON* label, lv_obj_t* page)
 
     /* create img obj */
     lv_obj_t* img_label = lv_img_create(label_obj);
-    lv_obj_add_event_cb(img_label, ui_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_add_event(img_label, ui_event_handler, LV_EVENT_ALL, NULL);
 
     if (json_ui_obj_parse(label, img_label) < 0) {
         UI_LOG_ERROR("ui parse ui obj config error.\n");
