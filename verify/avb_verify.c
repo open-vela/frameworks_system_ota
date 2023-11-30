@@ -277,10 +277,35 @@ int avb_verify(const char* partition, const char* key, const char* suffix)
         partition,
         NULL
     };
+    AvbSlotVerifyData* slot_data = NULL;
+    int ret;
+    int n;
 
-    return avb_slot_verify(&ops,
+    ret = avb_slot_verify(&ops,
         partitions, suffix ? suffix : "",
         AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
         AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-        NULL);
+        &slot_data);
+
+    if (ret != AVB_SLOT_VERIFY_RESULT_OK || !slot_data)
+        return ret;
+
+    for (n = 0; n < AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS; n++) {
+        uint64_t rollback_index = slot_data->rollback_indexes[n];
+        if (rollback_index) {
+            uint64_t current_rollback_index;
+            ret = ops.read_rollback_index(&ops, n, &current_rollback_index);
+            if (ret != AVB_IO_RESULT_OK)
+                goto out;
+            if (current_rollback_index != rollback_index) {
+                ret = ops.write_rollback_index(&ops, n, rollback_index);
+                if (ret != AVB_IO_RESULT_OK)
+                    goto out;
+            }
+        }
+    }
+
+out:
+    avb_slot_verify_data_free(slot_data);
+    return ret;
 }
