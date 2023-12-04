@@ -91,3 +91,54 @@ config UTILS_ZIP_VERIFY_PRIORITY
 		The priority to use the upgrade package verify task.  Default: 100
 
 endif
+
+config UTILS_BOOTCTL
+	tristate "Boot control"
+	default n
+	---help---
+		This option will enable boot control.
+
+if UTILS_BOOTCTL
+
+config UTILS_BOOTCTL_PROGNAME
+	string "Program name"
+	default "bootctl"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config UTILS_BOOTCTL_STACKSIZE
+	int "bootctl verify stack size"
+	default DEFAULT_TASK_STACKSIZE
+	---help---
+		The stack size to use the bootctl task.
+
+config UTILS_BOOTCTL_PRIORITY
+	int "bootctl verify priority"
+	default 100
+	---help---
+		The priority to use the upgrade package verify task.  Default: 100
+
+config UTILS_BOOTCTL_ENTRY
+	bool "bootctl is entry"
+	default n
+	---help---
+		bootctl is entry program, bootloader image need it.
+
+config UTILS_BOOTCTL_SLOT_A
+	string "bootctl slot a path"
+	---help---
+		bootctl slot a path.
+
+config UTILS_BOOTCTL_SLOT_B
+	string "bootctl slot b path"
+	---help---
+		bootctl slot b path.
+
+config UTILS_BOOTCTL_DEBUG
+	bool "bootctl debug"
+	default n
+	---help---
+		bootctl debug option.
+
+endif
