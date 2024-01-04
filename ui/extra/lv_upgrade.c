@@ -73,6 +73,8 @@ static void lv_upgrade_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 
     lv_draw_image_dsc_init(&upgrade->image_dsc);
     lv_obj_init_draw_image_dsc(obj, LV_PART_MAIN, &upgrade->image_dsc);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
 }
 
 static void lv_upgrade_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
@@ -117,7 +119,7 @@ static lv_area_t lv_calc_draw_area(void* image_src, lv_area_t* coords)
     }
 
     tmp_height = coords->y2 - coords->y1;
-    lv_image_decoder_get_info(image_src, &header);
+    header = ((lv_image_dsc_t*)image_src)->header;
 
     /* interface "lv_draw_image" request coords end pos - 1 */
     coords->x1 = coords->x2 - header.w;
@@ -227,6 +229,9 @@ static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
         return;
     }
     draw_area = lv_calc_draw_area(image_data->data, &coords);
+    lv_area_align(&draw_task->area, &draw_area, LV_ALIGN_CENTER, 0, 0);
+
+    upgrade->image_dsc.src = image_data->data;
     lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
 }
 
@@ -280,7 +285,7 @@ static void lv_upgrade_event(const lv_obj_class_t* class_p, lv_event_t* e)
     }
     /* Call the ancestor's event handler */
     lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_DRAW_MAIN) {
+    if (code == LV_EVENT_DRAW_TASK_ADDED) {
         lv_draw_task_t* draw_task = lv_event_get_draw_task(e);
         lv_obj_t* obj = lv_event_get_target(e);
         if (!draw_task || !obj) {
