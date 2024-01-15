@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
+#include <libavb.h>
 
 #include "avb_verify.h"
 
@@ -23,13 +23,13 @@ int main(int argc, char* argv[])
     int ret;
 
     if (argc < 3) {
-        printf("%s <partition> <key> [suffix]\n", argv[0]);
+        avb_printf("%s <partition> <key> [suffix]\n", argv[0]);
         return 100;
     }
 
     ret = avb_verify(argv[1], argv[2], argv[3]);
     if (ret != 0)
-        printf("%s error %d\n", argv[0], ret);
+        avb_printf("%s error %d\n", argv[0], ret);
 
     return ret;
 }
