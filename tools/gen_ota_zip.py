@@ -74,6 +74,14 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
     bin_list_cnt = len(bin_list)
     fd = open('%s/ota.sh' % (tmp_folder), 'w')
 
+    if args.user_begin_script:
+        user_begin_script = open(args.user_begin_script,"r")
+        str = "echo \"run user script before ota\"\n"
+        fd.write(str)
+        str = user_begin_script.read()
+        fd.write(str + "\n")
+        user_begin_script.close()
+
     i = 0
     patch_size_list = []
     while i < bin_list_cnt:
@@ -195,7 +203,7 @@ setprop ota.progress.current %d
         user_end_script = open(args.user_end_script,"r")
         str = "setprop ota.progress.next 100\n"
         fd.write(str)
-        str = "echo \"run user script\"\n"
+        str = "echo \"run user script after ota\"\n"
         fd.write(str)
         str = user_end_script.read()
         fd.write(str + "\n")
@@ -267,7 +275,7 @@ def gen_diff_ota(args):
     if args.user_file:
         for user_file in args.user_file:
             if os.path.exists(user_file) == False:
-                logger.error("user file is not exist %s", user_file)
+                logger.error("The user file (%s) does not exist.", user_file)
                 break
 
             if os.path.isdir(user_file):
@@ -303,6 +311,14 @@ def gen_diff_ota(args):
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
     path_cnt = len(path_list)
     fd = open('%s/ota.sh' % (tmp_folder),'w')
+
+    if args.user_begin_script:
+        user_begin_script = open(args.user_begin_script,"r")
+        str = "echo \"run user script before ota\"\n"
+        fd.write(str)
+        str = user_begin_script.read()
+        fd.write(str + "\n")
+        user_begin_script.close()
 
     i = 0
     size_list = []
@@ -388,7 +404,7 @@ setprop ota.progress.current %d
         user_end_script = open(args.user_end_script,"r")
         str = "setprop ota.progress.next 100\n"
         fd.write(str)
-        str = "echo \"run user script\"\n"
+        str = "echo \"run user script after ota\"\n"
         fd.write(str)
         str = user_end_script.read()
         fd.write(str + "\n")
@@ -535,6 +551,9 @@ will bin size will multiply speed then calculate progress''')
                         help='save ota tmpfile path',\
                         default='/data/ota_tmp')
 
+    parser.add_argument('--user_begin_script',\
+                        help='the script makes some work for ota ready')
+
     parser.add_argument('--user_end_script',\
                         help='the script run after ota is successful')
 
@@ -544,7 +563,7 @@ will bin size will multiply speed then calculate progress''')
                         default=0)
 
     parser.add_argument('--user_file',\
-                        help='user file add to ota.zip, this argumnet is a files or folders',\
+                        help='user file added to ota.zip, this argumnet represents one or more files or folders',\
                         nargs='*')
 
     args = parser.parse_args()
