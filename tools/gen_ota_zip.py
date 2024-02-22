@@ -184,7 +184,7 @@ fi
         str = \
 '''
 echo "install %s"%s
-time "dd if=/ota/%s of=%s bs=%s"
+time "dd if=/ota/%s of=%s bs=%s verify"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
@@ -385,7 +385,7 @@ fi
         str =\
 '''
 echo "install %s"%s
-time " dd if=/ota/%s of=%s bs=%s"
+time " dd if=/ota/%s of=%s bs=%s verify"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
