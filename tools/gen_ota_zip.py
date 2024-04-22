@@ -243,7 +243,7 @@ def gen_diff_ota(args):
             if old_files[2][i] == new_files[2][j] and \
                old_files[2][i][0:5] == 'vela_' and \
                (old_files[2][i][-4:] == '.elf' or old_files[2][i][-4:] == '.bin') and \
-               (filecmp.cmp(oldfile, newfile, shallow=False) != True):
+               (filecmp.cmp(oldfile, newfile, shallow=False) != True or new_files[2][j][5:8] == 'ota'):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
                 logger.debug(patchfile)
                 if args.blksz == '0':
