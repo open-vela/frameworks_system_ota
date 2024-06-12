@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Xiaomi Corporation
+ * Copyright (C) 2024 Xiaomi Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,28 +62,28 @@ typedef enum {
  * Init lvgl porting
  * @param void
  * @return return code ui_result_code_e
-*/
+ */
 ui_result_code_e ui_init(void);
 
 /**
  * Parse config file
  * @param page_name pointer to config file path
  * @return code of ui_result_code_e
-*/
+ */
 ui_result_code_e ui_config_parse(const char* file_path);
 
 /**
  * Show page
  * @param page_name pointer to page name
  * @return code of ui_result_code_e
-*/
+ */
 ui_result_code_e ui_page_show(const char* page_name);
 
 /**
  * Hide page
  * @param page_name pointer to page name
  * @return code of ui_result_code_e
-*/
+ */
 ui_result_code_e ui_page_hide(const char* page_name);
 
 /**
@@ -91,35 +91,35 @@ ui_result_code_e ui_page_hide(const char* page_name);
  * @param page_name pointer to page width progress comp
  * @param value proggress (0 ~ 100)
  * @return code of ui_result_code_e
-*/
+ */
 ui_result_code_e ui_set_progress(const char* page_name, uint32_t value);
 
 /**
  * Get page is exist
  * @param page_name pointer to page name
  * @return page exist or not
-*/
+ */
 bool ui_page_exist(const char* page_name);
 
 /**
  * Get current show page name
  * @param void
  * @return pointer to current page name
-*/
+ */
 const char* ui_get_current_page_name(void);
 
 /**
  * Handler looper
  * @param void
  * @return return code ui_result_code_e
-*/
+ */
 ui_result_code_e ui_timer_handler(void);
 
 /**
  * Uninit object of lvgl
  * @param void
  * @return void
-*/
+ */
 void ui_uninit(void);
 
 #ifdef __cplusplus
