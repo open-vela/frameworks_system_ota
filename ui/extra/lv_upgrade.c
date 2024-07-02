@@ -247,6 +247,11 @@ static void lv_render_bar_mode_content(lv_obj_t* obj, lv_draw_task_t* draw_task)
     draw_area = lv_calc_draw_area(image_data->data, &coords);
     lv_area_align(&draw_task->area, &draw_area, LV_ALIGN_CENTER, 0, 0);
 
+    lv_draw_rect_dsc_t draw_dsc;
+    lv_draw_rect_dsc_init(&draw_dsc);
+    draw_dsc.bg_color = lv_color_black();
+    lv_draw_rect(base_dsc->layer, &draw_dsc, &draw_area);
+
     upgrade->image_dsc.src = image_data->data;
     lv_draw_image(base_dsc->layer, &upgrade->image_dsc, &draw_area);
 }
