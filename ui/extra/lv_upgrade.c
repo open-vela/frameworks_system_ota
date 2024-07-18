@@ -52,6 +52,7 @@ static void lv_upgrade_constructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
 static void lv_upgrade_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj);
 static void lv_upgrade_event(const lv_obj_class_t* class_p, lv_event_t* e);
 static void lv_index_change(lv_obj_t* obj, int32_t index);
+static void lv_image_data_free(void* data);
 #if LV_USE_ARC != 0
 static void lv_value_change(lv_obj_t* obj, int32_t index);
 #endif
@@ -104,21 +105,16 @@ static void lv_upgrade_destructor(const lv_obj_class_t* class_p, lv_obj_t* obj)
         while (i < upgrade->image_array_size) {
             if (upgrade->image_array[i]) {
                 /* free file content */
-                if (upgrade->image_array[i]->data) {
-                    free(upgrade->image_array[i]->data);
-                }
+                lv_image_data_free(upgrade->image_array[i]->data);
                 /* free file info map */
-                free(upgrade->image_array[i]);
+                lv_free(upgrade->image_array[i]);
             }
             i++;
         }
-        free(upgrade->image_array);
+        lv_free(upgrade->image_array);
         upgrade->image_array = NULL;
     }
-    if (upgrade->image_percent_sign) {
-        free(upgrade->image_percent_sign);
-        upgrade->image_percent_sign = NULL;
-    }
+    lv_image_data_free(upgrade->image_percent_sign);
 
     lv_anim_del(upgrade->anim.var, upgrade->anim.exec_cb);
 }
@@ -165,6 +161,16 @@ static void lv_index_change(lv_obj_t* obj, int32_t index)
     }
     upgrade->anim_data = image_data->data;
     lv_obj_invalidate_area(obj, &obj->coords);
+}
+
+static void lv_image_data_free(void* data)
+{
+    lv_image_dsc_t* dsct = (lv_image_dsc_t*)data;
+
+    if (dsct) {
+        lv_free((void*)dsct->data);
+        lv_free(dsct);
+    }
 }
 
 #if LV_USE_ARC != 0
@@ -409,49 +415,49 @@ static void lv_calc_custom_anim_size(lv_upgrade_t* upgrade, lv_area_t* obj_area)
 #endif
 }
 
-static uint8_t* read_all_from_file(const char* path, uint32_t* data_size)
+static void read_data_from_file(const char* path, lv_image_dsc_t* dsct)
 {
     int fd = 0;
     size_t flen = 0;
-    uint8_t* content = NULL;
 
     fd = open(path, O_RDONLY);
 
     if (fd < 0) {
         LV_LOG_ERROR("open file failed!");
-        return NULL;
+        return;
     }
 
     flen = lseek(fd, 0L, SEEK_END);
+
     lseek(fd, 0L, SEEK_SET);
-
-    content = malloc(flen + 1);
-    if (data_size) {
-        *data_size = flen + 1;
+    ssize_t ret = read(fd, &dsct->header, sizeof(lv_image_header_t));
+    if (!ret) {
+        LV_LOG_ERROR("read file failed!");
+        goto r_end;
     }
 
-    if (content) {
-        read(fd, content, flen);
-        content[flen] = 0;
+    flen -= sizeof(lv_image_header_t);
+    uint8_t* data = lv_malloc(flen);
+    lseek(fd, sizeof(lv_image_header_t), SEEK_SET);
+    ret = read(fd, data, flen);
+    if (!ret) {
+        LV_LOG_ERROR("read file failed!");
+        goto r_end;
     }
+    dsct->data = data;
+
+r_end:
     close(fd);
-    return content;
 }
 
-static uint8_t* get_image_data_from_file(const char* path)
+static void* get_image_data_from_file(const char* path)
 {
-    uint32_t data_size = 0;
-    uint8_t* image_buff = read_all_from_file(path, &data_size);
-    if (!image_buff) {
-        LV_LOG_ERROR("read file error !\n");
-        return NULL;
-    }
+    lv_image_dsc_t* dsct = lv_malloc(sizeof(lv_image_dsc_t));
+    lv_memzero(dsct, sizeof(lv_image_dsc_t));
 
-    lv_image_dsc_t* dsc = (lv_image_dsc_t*)image_buff;
-    dsc->data_size = data_size - sizeof(lv_image_header_t);
-    dsc->data = image_buff + sizeof(lv_image_header_t);
+    read_data_from_file(path, dsct);
 
-    return image_buff;
+    return dsct;
 }
 
 lv_obj_t* lv_upgrade_create(lv_obj_t* parent)
@@ -527,9 +533,9 @@ void lv_upgrade_set_image_array_size(lv_obj_t* obj, int size)
     }
 
     upgrade->image_array_size = size;
-    upgrade->image_array = (image_data_t**)malloc(size * sizeof(image_data_t*));
+    upgrade->image_array = (image_data_t**)lv_malloc(size * sizeof(image_data_t*));
 
-    memset(upgrade->image_array, 0, size * sizeof(void*));
+    lv_memzero(upgrade->image_array, size * sizeof(void*));
 }
 
 void lv_upgrade_set_image_data(lv_obj_t* obj, int key, const char* file_path)
@@ -556,7 +562,7 @@ void lv_upgrade_set_image_data(lv_obj_t* obj, int key, const char* file_path)
         return;
     }
 
-    image_data = (image_data_t*)malloc(sizeof(image_data_t));
+    image_data = (image_data_t*)lv_malloc(sizeof(image_data_t));
     image_data->key = key;
     image_data->data = get_image_data_from_file(file_path);
     upgrade->image_array[i] = image_data;
