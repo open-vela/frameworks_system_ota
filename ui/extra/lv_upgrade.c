@@ -577,11 +577,11 @@ void lv_upgrade_set_progress(lv_obj_t* obj, uint32_t value)
     LV_ASSERT_OBJ(obj, MY_CLASS);
 
     lv_upgrade_t* upgrade = (lv_upgrade_t*)obj;
-    lv_memset(upgrade->progress, -1, sizeof(upgrade->progress));
-
     if (upgrade->value >= 0 && upgrade->value == value) {
         return;
     }
+
+    lv_memset(upgrade->progress, -1, sizeof(upgrade->progress));
 
     tmp_value = value;
     while (i < LV_PROGRESS_DIGIT) {
@@ -617,6 +617,7 @@ void lv_upgrade_set_progress(lv_obj_t* obj, uint32_t value)
     lv_obj_set_size(obj, new_obj_area.x2 - new_obj_area.x1, new_obj_area.y2 - new_obj_area.y1);
 
     lv_obj_invalidate(obj);
+    lv_refr_now(NULL);
 }
 
 uint32_t lv_upgrade_get_value(lv_obj_t* obj)
