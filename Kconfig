@@ -13,12 +13,20 @@ config OTA_UI
 if OTA_UI
 
 config OTA_UI_PROG_SYNC_TIME
-	int "OTA UI progress sync time"
+	int "OTA UI progress sync time, unit:milliseconds."
 	default 40000
+	---help---
+		Period for reading progress.
 
 config OTA_UI_FINISH_EXEC_CMD
 	string "OTA UI end exec command"
 	default "reboot 0"
+
+config OTA_UI_CMD_WAIT_TIME
+	int "exec command wait time, unt:seconds."
+	default 3
+	---help---
+		command wait time.
 
 config OTA_UI_STACKSIZE
 	int "OTA UI stack size"
