@@ -31,7 +31,7 @@ static const char* upgrading_page_name = "upgrading_page";
 static const char* upgrade_success_page_name = "upgrade_success_page";
 static const char* upgrade_fail_page_name = "upgrade_fail_page";
 static const char* reboot_cmd = CONFIG_OTA_UI_FINISH_EXEC_CMD;
-
+static const int cmd_wait_time = CONFIG_OTA_UI_CMD_WAIT_TIME;
 typedef struct upgrade_progress_s {
     int32_t current;
     int32_t prev_node;
@@ -178,9 +178,8 @@ int main(int argc, char* argv[])
         count_tick_ms += UI_TICK_MS;
 
         ui_timer_handler();
-
         if (logo_mode || progress.prev_node < 0 || progress.current >= 100) {
-            sleep(3);
+            sleep(cmd_wait_time);
             break;
         }
     }
