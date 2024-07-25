@@ -134,7 +134,7 @@ static uint8_t* get_image_data_from_file(const char* path)
     }
 
     lv_img_dsc_t* dsc = (lv_image_dsc_t*)image_buff;
-    dsc->data_size = data_size - sizeof(lv_image_header_t);
+    dsc->data_size = (uint32_t)(data_size - sizeof(lv_image_header_t));
     dsc->data = image_buff + sizeof(lv_image_header_t);
 
     return image_buff;
