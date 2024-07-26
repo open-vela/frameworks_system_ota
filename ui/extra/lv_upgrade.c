@@ -418,7 +418,6 @@ static void lv_calc_custom_anim_size(lv_upgrade_t* upgrade, lv_area_t* obj_area)
 static void read_data_from_file(const char* path, lv_image_dsc_t* dsct)
 {
     int fd = 0;
-    size_t flen = 0;
 
     fd = open(path, O_RDONLY);
 
@@ -427,24 +426,37 @@ static void read_data_from_file(const char* path, lv_image_dsc_t* dsct)
         return;
     }
 
-    flen = lseek(fd, 0L, SEEK_END);
+    off_t flen = lseek(fd, 0L, SEEK_END);
+    if (flen < sizeof(lv_image_header_t)) {
+        LV_LOG_ERROR("read file failed!");
+        goto r_end;
+    }
 
-    lseek(fd, 0L, SEEK_SET);
-    ssize_t ret = read(fd, &dsct->header, sizeof(lv_image_header_t));
-    if (!ret) {
+    off_t sset = lseek(fd, 0L, SEEK_SET);
+    if (sset < 0) {
+        LV_LOG_ERROR("seek file error!");
+        goto r_end;
+    }
+
+    int ret = read(fd, &dsct->header, sizeof(lv_image_header_t));
+    if (ret < 0) {
         LV_LOG_ERROR("read file failed!");
         goto r_end;
     }
 
     flen -= sizeof(lv_image_header_t);
-    uint8_t* data = lv_malloc(flen);
-    lseek(fd, sizeof(lv_image_header_t), SEEK_SET);
-    ret = read(fd, data, flen);
-    if (!ret) {
-        LV_LOG_ERROR("read file failed!");
+    dsct->data = lv_malloc(flen);
+
+    sset = lseek(fd, sizeof(lv_image_header_t), SEEK_SET);
+    if (sset < 0) {
+        LV_LOG_ERROR("seek file error!");
         goto r_end;
     }
-    dsct->data = data;
+
+    ret = read(fd, (uint8_t*)dsct->data, flen);
+    if (ret < 0) {
+        LV_LOG_ERROR("read file failed!");
+    }
 
 r_end:
     close(fd);
