@@ -98,6 +98,12 @@ config UTILS_ZIP_VERIFY_PRIORITY
 	---help---
 		The priority to use the upgrade package verify task.  Default: 100
 
+config UTILS_ZIP_VERIFY_BUFSIZE
+	int "upgrade package read buffer size"
+	default 32768
+	---help---
+		The read buffer size to use the upgrade package verify task.  Default: 32768
+
 endif
 
 config UTILS_BOOTCTL

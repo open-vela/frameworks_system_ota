@@ -253,11 +253,11 @@ error:
     return res;
 }
 
-static int md_one_chunk(int fd, data_block_t* block, unsigned char* output)
+static int md_one_chunk(int fd, data_block_t* block, unsigned char* output, unsigned char* readbuf, size_t buflen)
 {
     size_t sum = 0;
     AvbSHA256Ctx ctx;
-    unsigned char buf[1024], prefix = 0xa5;
+    unsigned char prefix = 0xa5;
     avb_sha256_init(&ctx);
 
     avb_sha256_update(&ctx, &prefix, 1);
@@ -266,13 +266,13 @@ static int md_one_chunk(int fd, data_block_t* block, unsigned char* output)
 
     while (sum < block->length) {
         ssize_t read_len = block->length - sum;
-        if (read_len > sizeof(buf))
-            read_len = sizeof(buf);
-        read_len = read(fd, buf, read_len);
+        if (read_len > buflen)
+            read_len = buflen;
+        read_len = read(fd, readbuf, read_len);
         assert_res(read_len > 0);
         sum += read_len;
 
-        avb_sha256_update(&ctx, buf, read_len);
+        avb_sha256_update(&ctx, readbuf, read_len);
     }
 
     memcpy(output, avb_sha256_final(&ctx), AVB_SHA256_DIGEST_SIZE);
@@ -282,7 +282,7 @@ error:
     return -1;
 }
 
-static int md_file_block(AvbSHA256Ctx* ctx, int fd, data_block_t* block)
+static int md_file_block(AvbSHA256Ctx* ctx, int fd, data_block_t* block, unsigned char* readbuf, size_t buflen)
 {
     int res = -1;
     data_block_t chunk;
@@ -299,7 +299,7 @@ static int md_file_block(AvbSHA256Ctx* ctx, int fd, data_block_t* block)
             chunk.length = length;
         }
 
-        res = md_one_chunk(fd, &chunk, md);
+        res = md_one_chunk(fd, &chunk, md, readbuf, buflen);
         assert_res(res == 0);
         avb_sha256_update(ctx, md, sizeof(md));
     }
@@ -333,12 +333,14 @@ static int verify_digest(const char* path, app_block_t* app_block, data_block_t*
     avb_sha256_update(&ctx, &prefix, 1);
     avb_sha256_update(&ctx, (const unsigned char*)&chunk_count, sizeof(chunk_count));
 
-    md_file_block(&ctx, fd, &app_block->data_block);
-    md_file_block(&ctx, fd, &app_block->central_directory_block);
+    buf = malloc(CONFIG_UTILS_ZIP_VERIFY_BUFSIZE);
+    assert_res(buf != NULL);
+    md_file_block(&ctx, fd, &app_block->data_block, buf, CONFIG_UTILS_ZIP_VERIFY_BUFSIZE);
+    md_file_block(&ctx, fd, &app_block->central_directory_block, buf, CONFIG_UTILS_ZIP_VERIFY_BUFSIZE);
 
     // Modify central directory offset
     prefix = 0xa5;
-    buf = malloc(app_block->eocd_block.length);
+    buf = realloc(buf, app_block->eocd_block.length);
     assert_res(buf != NULL);
     res = lseek(fd, (intptr_t)app_block->eocd_block.data, SEEK_SET);
     assert_res(res == (intptr_t)app_block->eocd_block.data);
