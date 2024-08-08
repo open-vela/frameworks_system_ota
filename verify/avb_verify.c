@@ -141,10 +141,14 @@ static AvbIOResult read_rollback_index(AvbOps* ops,
     size_t rollback_index_location,
     uint64_t* out_rollback_index)
 {
+#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
     char key[PROP_NAME_MAX];
 
     snprintf(key, sizeof(key), AVB_ROLLBACK_LOCATION, rollback_index_location);
     *out_rollback_index = property_get_int64(key, 0);
+#else
+    *out_rollback_index = 0;
+#endif
     return AVB_IO_RESULT_OK;
 }
 
@@ -152,18 +156,23 @@ AvbIOResult write_rollback_index(AvbOps* ops,
     size_t rollback_index_location,
     uint64_t rollback_index)
 {
+#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
     char key[PROP_NAME_MAX];
 
     snprintf(key, sizeof(key), AVB_ROLLBACK_LOCATION, rollback_index_location);
     if (property_set_int64(key, rollback_index) < 0)
         return AVB_IO_RESULT_ERROR_IO;
-
+#endif
     return AVB_IO_RESULT_OK;
 }
 
 static AvbIOResult read_is_device_unlocked(AvbOps* ops, bool* out_is_unlocked)
 {
+#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
     *out_is_unlocked = property_get_bool(AVB_DEVICE_UNLOCKED, false);
+#else
+    *out_is_unlocked = false;
+#endif
     return AVB_IO_RESULT_OK;
 }
 
@@ -196,6 +205,7 @@ static AvbIOResult read_persistent_value(AvbOps* ops,
     uint8_t* out_buffer,
     size_t* out_num_bytes_read)
 {
+#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
     ssize_t ret;
     char key[PROP_NAME_MAX];
 
@@ -208,6 +218,9 @@ static AvbIOResult read_persistent_value(AvbOps* ops,
         return AVB_IO_RESULT_ERROR_NO_SUCH_VALUE;
 
     *out_num_bytes_read = ret;
+#else
+    *out_num_bytes_read = 0;
+#endif
     return AVB_IO_RESULT_OK;
 }
 
@@ -216,12 +229,13 @@ static AvbIOResult write_persistent_value(AvbOps* ops,
     size_t value_size,
     const uint8_t* value)
 {
+#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
     char key[PROP_NAME_MAX];
 
     snprintf(key, sizeof(key), AVB_PERSISTENT_VALUE, name);
     if (property_set_buffer(key, value, value_size) < 0)
         return AVB_IO_RESULT_ERROR_INVALID_VALUE_SIZE;
-
+#endif
     return AVB_IO_RESULT_OK;
 }
 
