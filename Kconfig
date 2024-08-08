@@ -45,7 +45,6 @@ endif
 config UTILS_AVB_VERIFY
 	tristate "AVB verification tools"
 	default n
-	depends on KVDB
 	depends on LIB_AVB
 	---help---
 		Enable AVB verification tools
@@ -66,6 +65,21 @@ config UTILS_AVB_VERIFY_PRIORITY
 config UTILS_AVB_VERIFY_STACKSIZE
 	int "Stack size of AVB verification tools"
 	default 4096
+
+config UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
+	bool "Enable Device Lock"
+	default y
+	depends on KVDB
+
+config UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
+	bool "Enable Persistent Value"
+	default y
+	depends on KVDB
+
+config UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
+	bool "Enable Rollback Protection"
+	default y
+	depends on KVDB
 
 endif
 
