@@ -17,11 +17,13 @@
 #ifndef AVB_VERIFY_H
 #define AVB_VERIFY_H
 
+#include <libavb.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int avb_verify(const char* partition, const char* key, const char* suffix);
+int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags);
 
 #ifdef __cplusplus
 }
