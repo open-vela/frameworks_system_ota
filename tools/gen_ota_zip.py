@@ -384,17 +384,33 @@ fi
     while i < path_cnt:
         str =\
 '''
-echo "install %s"%s
-time " dd if=/ota/%s of=%s bs=%s verify"
-if [ $? -ne 0 ]
+avb_verify -h
+if [ $? -eq 0 ]
 then
-    echo "dd %s failed"%s
-    reboot
+  echo "Upgrade verify enabled"
+  avb_verify -c /ota/%s /etc/key.avb
+  set ret $?
+else
+  echo "Upgrade verify disabled"
+  set ret 0
+fi
+if [ $ret -eq 0 ]
+then
+  echo "install %s"%s
+  time " dd if=/ota/%s of=%s bs=%s verify"
+  if [ $? -ne 0 ]
+  then
+      echo "dd %s failed"%s
+      reboot
+  fi
+else
+  echo "skip %s"
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog,
+''' % (bin_list[i],
+       bin_list[i], args.otalog,
        bin_list[i], path_list[i], args.bs,
-       bin_list[i], args.otalog, ota_progress_list[i])
+       bin_list[i], args.otalog, bin_list[i], ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
