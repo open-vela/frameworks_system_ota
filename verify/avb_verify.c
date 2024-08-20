@@ -260,15 +260,13 @@ static AvbIOResult validate_public_key_for_partition(AvbOps* ops,
         ops->user_data, 0, public_key_length, key_data, &key_length);
     if (result == AVB_IO_RESULT_OK) {
         *out_is_trusted = memcmp(key_data, public_key_data, public_key_length) == 0;
-        if (out_rollback_index_location)
-            *out_rollback_index_location = 0;
     }
 
     free(key_data);
     return result;
 }
 
-int avb_verify(const char* partition, const char* key, const char* suffix)
+int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags)
 {
     struct AvbOps ops = {
         (char*)key,
@@ -297,7 +295,7 @@ int avb_verify(const char* partition, const char* key, const char* suffix)
 
     ret = avb_slot_verify(&ops,
         partitions, suffix ? suffix : "",
-        AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
+        flags | AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
         AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
         &slot_data);
 
@@ -311,7 +309,7 @@ int avb_verify(const char* partition, const char* key, const char* suffix)
             ret = ops.read_rollback_index(&ops, n, &current_rollback_index);
             if (ret != AVB_IO_RESULT_OK)
                 goto out;
-            if (current_rollback_index != rollback_index) {
+            if (current_rollback_index != rollback_index && (flags & AVB_SLOT_VERIFY_FLAGS_NOT_UPDATE_ROLLBACK_INDEX) == 0) {
                 ret = ops.write_rollback_index(&ops, n, rollback_index);
                 if (ret != AVB_IO_RESULT_OK)
                     goto out;
