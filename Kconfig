@@ -64,7 +64,7 @@ config UTILS_AVB_VERIFY_PRIORITY
 
 config UTILS_AVB_VERIFY_STACKSIZE
 	int "Stack size of AVB verification tools"
-	default 4096
+	default 6144
 
 config UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
 	bool "Enable Device Lock"
