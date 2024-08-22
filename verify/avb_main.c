@@ -19,7 +19,7 @@
 
 void usage(const char* progname)
 {
-    avb_printf("Usage: %s [-b] [-c] <partition> <key> [suffix]\n", progname);
+    avb_printf("Usage: %s [-b] [-c] [-i] <partition> <key> [suffix]\n", progname);
     avb_printf("Examples:\n");
     avb_printf("  1. Boot Verify\n");
     avb_printf("     %s <partition> <key> [suffix]\n", progname);
@@ -32,13 +32,15 @@ int main(int argc, char* argv[])
     AvbSlotVerifyFlags flags = 0;
     int ret;
 
-    while ((ret = getopt(argc, argv, "bch")) != -1) {
+    while ((ret = getopt(argc, argv, "bchi")) != -1) {
         switch (ret) {
         case 'b':
-            flags = 0;
             break;
         case 'c':
-            flags = AVB_SLOT_VERIFY_FLAGS_NOT_ALLOW_SAME_ROLLBACK_INDEX | AVB_SLOT_VERIFY_FLAGS_NOT_UPDATE_ROLLBACK_INDEX;
+            flags |= AVB_SLOT_VERIFY_FLAGS_NOT_ALLOW_SAME_ROLLBACK_INDEX | AVB_SLOT_VERIFY_FLAGS_NOT_UPDATE_ROLLBACK_INDEX;
+            break;
+        case 'i':
+            flags |= AVB_SLOT_VERIFY_FLAGS_ALLOW_ROLLBACK_INDEX_ERROR;
             break;
         case 'h':
             usage(argv[0]);
