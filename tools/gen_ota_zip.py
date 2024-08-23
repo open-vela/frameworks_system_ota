@@ -382,18 +382,16 @@ fi
 
     i = 0
     while i < path_cnt:
-        str =\
+        str = 'set ret 0\n'
+        if args.upgrade_verify:
+            for upgrade in args.upgrade_verify:
+                if upgrade == bin_list[i][5:-4]:
+                    logger.info("Enable upgrade verify for %s" % upgrade)
+                    str += 'avb_verify -c /ota/%s /etc/key.avb\n' % bin_list[i]
+                    str += 'set ret $?\n'
+                    break
+        str += \
 '''
-avb_verify -h
-if [ $? -eq 0 ]
-then
-  echo "Upgrade verify enabled"
-  avb_verify -c /ota/%s /etc/key.avb
-  set ret $?
-else
-  echo "Upgrade verify disabled"
-  set ret 0
-fi
 if [ $ret -eq 0 ]
 then
   echo "install %s"%s
@@ -407,8 +405,7 @@ else
   echo "skip %s"
 fi
 setprop ota.progress.current %d
-''' % (bin_list[i],
-       bin_list[i], args.otalog,
+''' % (bin_list[i], args.otalog,
        bin_list[i], path_list[i], args.bs,
        bin_list[i], args.otalog, bin_list[i], ota_progress_list[i])
         if i + 1 < path_cnt:
@@ -580,6 +577,10 @@ will bin size will multiply speed then calculate progress''')
 
     parser.add_argument('--user_file',\
                         help='user file added to ota.zip, this argumnet represents one or more files or folders',\
+                        nargs='*')
+
+    parser.add_argument('--upgrade_verify',\
+                        help='partitions enabling AVB upgrade verify',\
                         nargs='*')
 
     args = parser.parse_args()
