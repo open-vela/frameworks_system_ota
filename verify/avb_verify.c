@@ -16,7 +16,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifdef CONFIG_KVDB
 #include <kvdb.h>
+#endif
 #include <libavb.h>
 #include <stdio.h>
 #include <stdlib.h>
