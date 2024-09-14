@@ -129,7 +129,7 @@ setprop ota.progress.next %d
 '''
     else :
         str = \
-'''set version_current `getprop ota.version.current`
+'''set version_current `getprop persist.ota.version`
 
 echo "new version is "%d
 
@@ -139,8 +139,8 @@ then
     setprop ota.progress.current -1
     exit
 fi
-setprop ota.version.next %d
-''' % (args.version[0], args.version[0], args.otalog, args.version[0])
+
+''' % (args.version[0], args.version[0], args.otalog)
 
     fd.write(str)
 
@@ -351,7 +351,7 @@ setprop ota.progress.next %d
 '''
     else :
         str = \
-'''set version_current `getprop ota.version.current`
+'''set version_current `getprop persist.ota.version`
 
 echo "new version is "%d
 
@@ -361,8 +361,8 @@ then
     setprop ota.progress.current -1
     exit
 fi
-setprop ota.version.next %d
-''' % (args.version[0], args.version[0], args.otalog, args.version[0])
+
+''' % (args.version[0], args.version[0], args.otalog)
 
     fd.write(str)
     # avoid /dev/<xxx> doesn't exist
