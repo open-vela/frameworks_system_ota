@@ -129,7 +129,7 @@ setprop ota.progress.next %d
 '''
     else :
         str = \
-'''set version_current `getprop persist.ota.version`
+'''set version_current `getprop ro.ota.version`
 
 echo "new version is "%d
 
@@ -351,7 +351,7 @@ setprop ota.progress.next %d
 '''
     else :
         str = \
-'''set version_current `getprop persist.ota.version`
+'''set version_current `getprop ro.ota.version`
 
 echo "new version is "%d
 
