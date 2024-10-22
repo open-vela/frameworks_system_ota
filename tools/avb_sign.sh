@@ -17,8 +17,8 @@
 
 set -e
 
-REPO_ROOT=$(realpath $(dirname $(realpath $0))/../../../)
-readonly KEY_PATH=$REPO_ROOT/frameworks/ota/tools/keys
+REPO_ROOT=$(realpath $(dirname $(realpath $0))/../../../../)
+readonly KEY_PATH=$REPO_ROOT/frameworks/system/ota/tools/keys
 readonly TOOL_PATH=$REPO_ROOT/external/avb/avb
 readonly AVBTOOL=$TOOL_PATH/avbtool
 readonly DEFAULT_KEY=$KEY_PATH/key.pem
