@@ -18,5 +18,5 @@
 #
 ############################################################################
 
-CONFIGURED_APPS += $(APPDIR)/frameworks/ota
+CONFIGURED_APPS += $(APPDIR)/frameworks/system/ota
 
