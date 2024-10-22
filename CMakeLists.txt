@@ -17,7 +17,7 @@
 if(CONFIG_OTA_UI)
   set(UI_CSRCS ui/ui_ota.c ui/extra/lv_upgrade.c ui/ui_config_parse.c
                ui/ui_display.c)
-  set(UI_INCDIR ${NUTTX_APPS_DIR}/frameworks/kvdb
+  set(UI_INCDIR ${NUTTX_APPS_DIR}/frameworks/system/utils/kvdb
                 ${NUTTX_APPS_DIR}/netutils/cjson/cJSON)
 
   nuttx_add_application(
