@@ -604,9 +604,9 @@ will bin size will multiply speed then calculate progress''')
     if len((args.bin_path)) == 2:
         os.chdir(tools_path)
         if not os.path.exists("ddelta_generate"):
-            os.system('make -C ../../../external/ddelta/ddelta -f Makefile')
-            os.system('mv ../../../external/ddelta/ddelta/ddelta_generate .')
-            os.system('mv ../../../external/ddelta/ddelta/ddelta_apply .')
+            os.system('make -C ../../../../external/ddelta/ddelta -f Makefile')
+            os.system('mv ../../../../external/ddelta/ddelta/ddelta_generate .')
+            os.system('mv ../../../../external/ddelta/ddelta/ddelta_apply .')
         os.chdir(pwd_path)
         gen_diff_ota(args)
     elif len(args.bin_path) == 1:
