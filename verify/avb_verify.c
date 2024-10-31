@@ -323,3 +323,100 @@ out:
     avb_slot_verify_data_free(slot_data);
     return ret;
 }
+
+int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc)
+{
+    struct AvbOps ops = {
+        NULL,
+        NULL,
+        NULL,
+        read_from_partition,
+        get_preloaded_partition,
+        NULL,
+        validate_vbmeta_public_key,
+        read_rollback_index,
+        NULL,
+        read_is_device_unlocked,
+        get_unique_guid_for_partition,
+        get_size_of_partition,
+        NULL,
+        NULL,
+        NULL
+    };
+    AvbFooter footer;
+    size_t vbmeta_num_read;
+    uint8_t* vbmeta_buf = NULL;
+    size_t num_descriptors;
+    const AvbDescriptor** descriptors;
+    AvbDescriptor avb_desc;
+    int ret;
+
+    ret = avb_footer(&ops, full_partition_name, &footer);
+    if (ret != AVB_IO_RESULT_OK) {
+        avb_error("Loading footer failed: ", full_partition_name);
+        return ret;
+    }
+
+    vbmeta_buf = avb_malloc(footer.vbmeta_size);
+    if (vbmeta_buf == NULL) {
+        return AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+    }
+
+    ret = ops.read_from_partition(&ops,
+        full_partition_name,
+        footer.vbmeta_offset,
+        footer.vbmeta_size,
+        vbmeta_buf,
+        &vbmeta_num_read);
+    if (ret != AVB_IO_RESULT_OK) {
+        goto out;
+    }
+
+    AvbVBMetaImageHeader vbmeta_header;
+    avb_vbmeta_image_header_to_host_byte_order((AvbVBMetaImageHeader*)vbmeta_buf,
+        &vbmeta_header);
+
+    descriptors = avb_descriptor_get_all(vbmeta_buf, vbmeta_num_read, &num_descriptors);
+    if (!avb_descriptor_validate_and_byteswap(descriptors[0], &avb_desc)) {
+        avb_error(full_partition_name, ": Descriptor is invalid.\n");
+        ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+        goto out;
+    }
+
+    switch (avb_desc.tag) {
+    case AVB_DESCRIPTOR_TAG_HASH:
+        AvbHashDescriptor avb_hash_desc;
+        const AvbDescriptor* descriptor = descriptors[0];
+        const uint8_t* desc_partition_name = NULL;
+        const uint8_t* desc_salt;
+        const uint8_t* desc_digest;
+
+        if (!avb_hash_descriptor_validate_and_byteswap(
+                (const AvbHashDescriptor*)descriptor, &avb_hash_desc)) {
+            ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+            goto out;
+        }
+        desc_partition_name = ((const uint8_t*)descriptor) + sizeof(AvbHashDescriptor);
+        desc_salt = desc_partition_name + avb_hash_desc.partition_name_len;
+        desc_digest = desc_salt + avb_hash_desc.salt_len;
+        if (avb_hash_desc.digest_len > sizeof(desc->digest)) {
+            ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT;
+            goto out;
+        }
+
+        desc->digest_len = avb_hash_desc.digest_len;
+        desc->image_size = avb_hash_desc.image_size;
+        strlcpy((char*)desc->hash_algorithm, (char*)avb_hash_desc.hash_algorithm, sizeof(desc->hash_algorithm));
+        memcpy(desc->digest, desc_digest, desc->digest_len);
+        break;
+
+    default:
+        ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+        break;
+    }
+
+out:
+    if (vbmeta_buf)
+        avb_free(vbmeta_buf);
+    return ret;
+}
