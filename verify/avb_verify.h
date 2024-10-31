@@ -23,7 +23,15 @@
 extern "C" {
 #endif
 
+struct avb_hash_desc_t {
+    uint64_t image_size;
+    uint8_t hash_algorithm[32]; /* Ref: struct AvbHashDescriptor */
+    uint32_t digest_len;
+    uint8_t digest[64]; /* Max: sha512 */
+};
+
 int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags);
+int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc);
 
 #ifdef __cplusplus
 }
