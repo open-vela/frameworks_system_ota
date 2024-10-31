@@ -32,6 +32,7 @@ struct avb_hash_desc_t {
 
 int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags);
 int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc);
+void avb_hash_desc_dump(const struct avb_hash_desc_t* desc);
 
 #ifdef __cplusplus
 }
