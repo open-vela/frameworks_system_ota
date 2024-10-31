@@ -20,11 +20,14 @@
 void usage(const char* progname)
 {
     avb_printf("Usage: %s [-b] [-c] [-i] <partition> <key> [suffix]\n", progname);
+    avb_printf("       %s [-I] <partition>\n", progname);
     avb_printf("Examples:\n");
     avb_printf("  1. Boot Verify\n");
     avb_printf("     %s <partition> <key> [suffix]\n", progname);
     avb_printf("  2. Upgrade Verify\n");
     avb_printf("     %s -c <image> <key> [suffix]\n", progname);
+    avb_printf("  3. Image Info\n");
+    avb_printf("     %s -I <image>\n", progname);
 }
 
 int main(int argc, char* argv[])
@@ -32,7 +35,7 @@ int main(int argc, char* argv[])
     AvbSlotVerifyFlags flags = 0;
     int ret;
 
-    while ((ret = getopt(argc, argv, "bchi")) != -1) {
+    while ((ret = getopt(argc, argv, "bchiI")) != -1) {
         switch (ret) {
         case 'b':
             break;
@@ -45,6 +48,18 @@ int main(int argc, char* argv[])
         case 'h':
             usage(argv[0]);
             return 0;
+            break;
+        case 'I':
+            struct avb_hash_desc_t hash_desc;
+            if (argc - optind < 2) {
+                usage(argv[0]);
+                return 100;
+            }
+            if (!avb_hash_desc(argv[optind + 1], &hash_desc)) {
+                avb_hash_desc_dump(&hash_desc);
+                return 0;
+            }
+            return 1;
             break;
         default:
             usage(argv[0]);
