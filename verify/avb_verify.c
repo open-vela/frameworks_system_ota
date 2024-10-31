@@ -420,3 +420,17 @@ out:
         avb_free(vbmeta_buf);
     return ret;
 }
+
+void avb_hash_desc_dump(const struct avb_hash_desc_t* desc)
+{
+    int i;
+
+    avb_printf("%-16s : %" PRIu64 " bytes\n", "Image Size", desc->image_size);
+    avb_printf("%-16s : %s\n", "Hash Algorithm", desc->hash_algorithm);
+    avb_printf("%-16s : %" PRIu32 "\n", "Digest Length", desc->digest_len);
+    avb_printf("%-16s : ", "Digest");
+    for (i = 0; i < desc->digest_len; i++) {
+        avb_printf("%02" PRIx8 "", desc->digest[i]);
+    }
+    avb_printf("\n");
+}
