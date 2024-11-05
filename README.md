@@ -63,9 +63,9 @@ int bootctl_success(void);
 
 In order to determine whether a system (slot) can boot normally, bootloader needs to define corresponding properties (status) which are described as follows:
 
-* active. The value is exclusive. It indicates that this partition is the boot partition and always selected by bootloader.
-* bootable. Indicates that a system can boot from this slot partition.
-* successful. Indicates that the system in this slot is successfully started.
+* active: The value is exclusive. It indicates that this partition is the boot partition and always selected by bootloader.
+* bootable: Indicates that a system can boot from this slot partition.
+* successful: Indicates that the system in this slot is successfully started.
 
 slot a and slot b, only one of which is active, can both have bootable and successful attributes.
 
@@ -80,10 +80,10 @@ Bootctl detects that one or two slots are in the bootable state:
 
 1. ### Packaging
 
-Vela provides the python packaging script `gen_ota_zip.py` which can generate full packages and diff packages according to business needs
+Vela provides the python packaging script `gen_ota_zip.py` which can generate full packages and diff packages according to business needs.
 
 * full ota
-  Assume that the firmware vela_ap.bin and vela_audio.bin to be upgraded are stored in the directory named "new"
+  Assume that the firmware vela_ap.bin and vela_audio.bin to be upgraded are stored in the directory named "new":
 
   ```Bash
   $ tree new
@@ -97,7 +97,7 @@ Vela provides the python packaging script `gen_ota_zip.py` which can generate fu
   ```
 * diff ota
 
-  Assume that the firmware to be upgraded are vela_ap.bin and vela_audio.bin. The old firmware is stored in the "old" directory, and the new firmware is stored in the "new" directory
+  Assume that the firmware to be upgraded are vela_ap.bin and vela_audio.bin. The old firmware is stored in the "old" directory, and the new firmware is stored in the "new" directory:
 
 ```Bash
 $ tree old new
@@ -123,7 +123,7 @@ ota.zip
 * `--user_end_script`    User-defined OTA post-processing script
 * `--user_file`   Packages the attachments into ota.zip (Used in pre- and post-processing)
 
-Specify the pre- and post- processing script and attachments during packaging. For details, see the packaging command
+Specify the pre- and post- processing script and attachments during packaging. For details, see the packaging command:
 
 ```JavaScript
 ./gen_ota_zip.py new/ --debug --sign  --user_end_script testend.sh   --user_begin_script testbegin.sh  --user_file  resources/
@@ -135,7 +135,7 @@ The firmware name must match the name of the device node. The firmware must be n
 
 ## ui
 
-A set of easy-to-use, scalable OTA upgrade animation module, mainly including these pages `Upgrading`, `Upgrade success`, `Upgrade fail`, `Logo`
+A set of easy-to-use, scalable OTA upgrade animation module, mainly including these pages `Upgrading`, `Upgrade success`, `Upgrade fail`, `Logo`.
 
 1. ### Precondition
 
@@ -164,7 +164,7 @@ nsh> otaUI -h
         -h print help message.
 ```
 
-The file of ota_ui_config.json stores the resource description information
+The file of ota_ui_config.json stores the resource description information.
 
 * display booting logo
 
@@ -180,7 +180,7 @@ nsh> otaUI &
 
 * Simulated ota progress test
 
-After running the otaUI program, we can simulate the upgrade test process by using the -t parameter to set the upgrade progress percentage, the value of the -t parameter ranges from 0 to 6, you can refer to the help info, where 6 is used to test the case of upgrade failure
+After running the otaUI program, we can simulate the upgrade test process by using the -t parameter to set the upgrade progress percentage, the value of the -t parameter ranges from 0 to 6, you can refer to the help info, where 6 is used to test the case of upgrade failure.
 
 ```Bash
 nsh> otaUI -t 0
