@@ -1,12 +1,14 @@
 # 项目概述
 
+\[ [English](README.md) | 简体中文 \]
+
 ota 项目主要由四部分组成，分别为AB升级管理器（bootctl）、升级包制作脚本（tools）、升级动画应用（ui）和安全校验工具（verify）。
 
 ## bootctl
 
 `bootctl` 是系统启动时进行AB分区选择的管理器，使用 `bootctl` 命令可以让系统处于不同的状态，内部实现是借助KVDB存储相关标记。
 
-1. ### 配置项
+### 配置项
 
 ```Makefile
 CONFIG_UTILS_BOOTCTL=y
@@ -24,11 +26,11 @@ CONFIG_KVDB_DIRECT=y
 
 `CONFIG_UTILS_BOOTCTL_ENTRY` 需要在bootloader的config中开启，ap 则不需要。
 
-2. ### 使用方法
+### 使用方法
 
 在 bootloader 中将 bootctl 设置为entry，这样系统开机 `bootloader`自动进入 `bootctl`进行分区选择。在ap中启动成功后，用户需要调用 `bootctl success `，表示启动成功，`bootctl`就会把当前的分区mark为 `successful`; 在对另外一个分区进行升级时，需要使用 `bootctl update`， 将另外一个分区标记为 `update`状态， 升级成功后使用 `bootctl done`，表示将另外一个分区标记为 `bootable`，重启后会从新升级的分区启动。
 
-3. ### 原理介绍
+### 原理介绍
 
 #### api使用
 
@@ -77,7 +79,7 @@ bootctl检测到1个或者2个slot都是bootable的状态:
 
 ## tools
 
-1. ### 打包方式
+### 打包方式
 
 vela 提供了python打包脚本 `gen_ota_zip.py`,  可根据业务需要生成整包和差分包。
 
@@ -114,7 +116,7 @@ vela 提供了python打包脚本 `gen_ota_zip.py`,  可根据业务需要生成�
   ota.zip
   ```
 
-2. ### 定制处理动作
+### 定制处理动作
 
 gen_ota_zip.py支持：
 
@@ -130,7 +132,7 @@ vendor定制逻辑放到预处理脚本、后处理脚本里，打包时指定�
 ./gen_ota_zip.py new/ --debug --sign  --user_end_script testend.sh   --user_begin_script testbegin.sh  --user_file  resources/
 ```
 
-3. ### **注意事项**
+### **注意事项**
 
 固件名称及设备节点需匹配，升级固件必须以 `vela_<xxx>.bin` 的形式命名，前缀 `vela_`和后缀 `.bin`不可缺少。同时设备上的文件系统中需要确保存在名为 `/dev/<xxx>` 的设备节点。例如，要升级的固件名为 `vela_ap.bin` 、`vela_audio.bin`，需要设备上同时存在/dev/ap和/dev/audio两个设备节点。
 
@@ -138,7 +140,7 @@ vendor定制逻辑放到预处理脚本、后处理脚本里，打包时指定�
 
 易用，可扩展性强的OTA升级动画模块，主要包含这几个页面 `Upgrading`、`Upgrade success`、`Upgrade fail`和`Logo`。
 
-1. ### 前置条件
+### 前置条件
 
 * 系统已经支持framebuffer。
 * 开启OTA UI配置。
@@ -146,7 +148,7 @@ vendor定制逻辑放到预处理脚本、后处理脚本里，打包时指定�
   CONFIG_OTA_UI=y
   ```
 
-2. ### 获取帮助
+### 获取帮助
 
 ```Bash
 nsh> otaUI -h
@@ -186,7 +188,7 @@ nsh> otaUI -h
 
 vela验签主要包括分区验签和包验签，分别对应avb_verify和zip_verify，两者使用方法基本一致，这里以avb_verify为例介绍。
 
-1. ### 设备端验签
+### 设备端验签
 
 启用AVB工具
 
@@ -233,7 +235,7 @@ vela验签主要包括分区验签和包验签，分别对应avb_verify和zip_ve
   echo "Boot failed!"
   ```
 
-2. ### 签名镜像
+### 签名镜像
 
 * 使用命令
   ```Bash
