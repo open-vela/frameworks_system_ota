@@ -1,12 +1,14 @@
 # Project Overview
 
+\[ English | [简体中文](README_zh-cn.md) \]
+
 OTA project is mainly composed of four parts: AB upgrade manager (bootctl), ota package script (tools), upgrade animation application (ui) and security verification tool (verify).
 
 ## bootctl
 
 Bootctl is a manager for AB partition selection during system boot. Using the bootctl command allows the system to be in different states, with the internal implementation relying on KVDB to store related flags.
 
-1. ### Config
+### Config
 
 ```Makefile
 CONFIG_UTILS_BOOTCTL=y
@@ -24,11 +26,11 @@ CONFIG_KVDB_DIRECT=y
 
 CONFIG_UTILS_BOOTCTL_ENTRY should be enabled in the config of the bootloader, but is not required for the ap.
 
-2. ### Usage
+### Usage
 
 In the bootloader, set `bootctl` as the entry point so that during system boot, the bootloader automatically enters bootctl for partition selection. Once the system has successfully started in the AP, the user needs to call `bootctl success` to indicate successful booting, which prompts bootctl to mark the current partition as `successful`. When upgrading another partition, use `bootctl update` to mark the other partition as `update` status. After a successful upgrade, use `bootctl done` to mark the other partition as `bootable`, which will then start from the newly upgraded partition upon reboot.
 
-3. ### Principle introduction
+### Principle introduction
 
 #### api
 
@@ -77,7 +79,7 @@ Bootctl detects that one or two slots are in the bootable state:
 
 ## tools
 
-1. ### Packaging
+### Packaging
 
 Vela provides the python packaging script `gen_ota_zip.py` which can generate full packages and diff packages according to business needs.
 
@@ -114,7 +116,7 @@ $ ls *.zip
 ota.zip
 ```
 
-2. ### Customize processing actions
+### Customize processing actions
 
 `gen_ota_zip.py` supported following three customization options:
 
@@ -128,7 +130,7 @@ Specify the pre- and post- processing script and attachments during packaging. F
 ./gen_ota_zip.py new/ --debug --sign  --user_end_script testend.sh   --user_begin_script testbegin.sh  --user_file  resources/
 ```
 
-3. ### **Cautions**
+### **Cautions**
 
 The firmware name must match the name of the device node. The firmware must be named in vela_`<xxx>`.bin format. The prefix `vela_` and suffix `.bin` are indispensable. In addition, a device node named /dev/`<xxx>` should exist in the file system on the device. For example, if the firmware names are vela_ap.bin and vela_audio.bin, then  device nodes `/dev/ap` and `/dev/audio` must exist on the device.
 
@@ -136,7 +138,7 @@ The firmware name must match the name of the device node. The firmware must be n
 
 A set of easy-to-use, scalable OTA upgrade animation module, mainly including these pages `Upgrading`, `Upgrade success`, `Upgrade fail`, `Logo`.
 
-1. ### Precondition
+### Precondition
 
 * The system supports framebuffer
 * Enable UI configuration
@@ -145,7 +147,7 @@ A set of easy-to-use, scalable OTA upgrade animation module, mainly including th
 CONFIG_OTA_UI=y
 ```
 
-2. ### Get help
+### Get help
 
 ```Bash
 nsh> otaUI -h
@@ -189,7 +191,7 @@ nsh> otaUI -t 0
 
 Vela safety verification mainly includes partition check and package check, which corresponding to avb_verify and zip_verify respectively. The two methods are basically the same. This section takes avb_verify as an example.
 
-1. ### Verify on the device
+### Verify on the device
 
 Enable AVB
 
@@ -235,7 +237,7 @@ fi
 echo "Boot failed!"
 ```
 
-2. ### Sign image
+### Sign image
 
 * Usage
   ```Bash
