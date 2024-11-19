@@ -2,11 +2,11 @@
 
 \[ English | [简体中文](README_zh-cn.md) \]
 
-OTA project is mainly composed of four parts: AB upgrade manager (bootctl), ota package script (tools), upgrade animation application (ui) and security verification tool (verify).
+`ota` project is mainly composed of four parts: AB upgrade manager (`bootctl`), ota package script (`tools`), upgrade animation application (`ui`) and security verification tool (`verify`).
 
-## bootctl
+## Part 1 bootctl
 
-Bootctl is a manager for AB partition selection during system boot. Using the bootctl command allows the system to be in different states, with the internal implementation relying on KVDB to store related flags.
+`bootctl` is a manager for AB partition selection during system boot. Using the `bootctl` command allows the system to be in different states, with the internal implementation relying on `KVDB` to store related flags.
 
 ### Config
 
@@ -28,17 +28,19 @@ CONFIG_UTILS_BOOTCTL_ENTRY should be enabled in the config of the bootloader, bu
 
 ### Usage
 
-In the bootloader, set `bootctl` as the entry point so that during system boot, the bootloader automatically enters bootctl for partition selection. Once the system has successfully started in the AP, the user needs to call `bootctl success` to indicate successful booting, which prompts bootctl to mark the current partition as `successful`. When upgrading another partition, use `bootctl update` to mark the other partition as `update` status. After a successful upgrade, use `bootctl done` to mark the other partition as `bootable`, which will then start from the newly upgraded partition upon reboot.
+In the `bootloader`, set `bootctl` as the `entry` point so that during system boot, the `bootloader` automatically enters `bootctl` for partition selection. 
 
-### Principle introduction
+Once the system has successfully started in the `ap`, the user needs to call `bootctl success` to indicate successful booting, which prompts bootctl to mark the current partition as `successful`. When upgrading another partition, use `bootctl update` to mark the other partition as `update` status. After a successful upgrade, use `bootctl done` to mark the other partition as `bootable`, which will then start from the newly upgraded partition upon reboot.
 
-#### api
+### Introduction to the principle
+
+#### API usage
 
 ```C
-const char* bootctl_active(void);
-int bootctl_update(void);
-int bootctl_done(void);
-int bootctl_success(void);
+const char* bootctl_active(void); //Return the name of the partition currently running
+int bootctl_update(void); //Mark the upgrade in progress
+int bootctl_done(void); //Mark the upgrade completed
+int bootctl_success(void); //Mark the boot successfully
 ```
 
 #### kvdb
@@ -58,33 +60,36 @@ int bootctl_success(void);
 #define SLOT_B_SUCCESSFUL "persist.boot.slot_b.successful"
 
 #define SLOT_TRY "persist.boot.try"
+
 ```
 
-#### boot
+#### Boot process
 
-In order to determine whether a system (slot) can boot normally, bootloader needs to define corresponding properties (status) which are described as follows:
+`bootloader` In order to determine whether a system (slot) is in a bootable state, it is necessary to define the corresponding attributes (states) for it. The state description is as follows:
 
-* active: The value is exclusive. It indicates that this partition is the boot partition and always selected by bootloader.
-* bootable: Indicates that a system can boot from this slot partition.
-* successful: Indicates that the system in this slot is successfully started.
+* `active`: active partition identifier, exclusive, indicating that the partition is the boot partition, and the bootloader will always select this partition.
 
-slot a and slot b, only one of which is active, can both have bootable and successful attributes.
+* `bootable`: Indicates that there is a system that may be bootable in the partition of this `slot`.
+* `successful`: Indicates that the system of this `slot` can be started normally.
 
-Bootctl detects that one or two slots are in the bootable state:
+Only one of `slot a` and `slot b` is active, and they can have both bootable and successful attributes.
 
-1. Select an active slot or a successful slot.
-2. The ap calls bootctl success successfully.
-3. If the slot boots normally, marks it as successful and active.
-4. If the slot boots failed, set the other slot to be active for the next attempt.
+Bootctl detects that one or two slots are bootable:
 
-## tools
+1. Select the slot of `active` or `successful` to try to start.
+2. The mark of successful startup is that ap calls bootctl success successfully.
+3. If the startup is successful, the slot is marked as successful and active.
+4. If the startup fails, set another slot as active and make the next attempt.
 
-### Packaging
+## Part 2 tools
 
-Vela provides the python packaging script `gen_ota_zip.py` which can generate full packages and diff packages according to business needs.
+### Packaging method
 
-* full ota
-  Assume that the firmware vela_ap.bin and vela_audio.bin to be upgraded are stored in the directory named "new":
+Vela provides a Python packaging script `gen_ota_zip.py`, which can generate full packages and differential packages according to business needs.
+
+* **Full package upgrade**
+
+  Assuming that the firmware to be upgraded is `vela_ap.bin` and `vela_audio.bin`, which are located in the `new` directory, you can use the following command to generate the `OTA` full package:
 
   ```Bash
   $ tree new
@@ -92,63 +97,71 @@ Vela provides the python packaging script `gen_ota_zip.py` which can generate fu
   ├── vela_ap.bin
   └── vela_audio.bin
 
+  # Generate ota.zip
   $ ./gen_ota_zip.py new --sign
+
+  # ota.zip is a signed ota package
   $ ls *.zip
   ota.zip
   ```
-* diff ota
+* **Differential upgrade**
 
-  Assume that the firmware to be upgraded are vela_ap.bin and vela_audio.bin. The old firmware is stored in the "old" directory, and the new firmware is stored in the "new" directory:
+  Assuming that the firmware to be upgraded is `vela_ap.bin` and `vela_audio.bin`, the old version of the firmware is located in the old directory, and the new version of the firmware is located in the new directory, you can use the following command to generate the OTA differential package:
 
-```Bash
-$ tree old new
-old
-├── vela_ap.bin
-└── vela_audio.bin
-new
-├── vela_ap.bin
-└── vela_audio.bin
+  ```Bash
+  $ tree old new
+  old
+  ├── vela_ap.bin
+  └── vela_audio.bin
+  new
+  ├── vela_ap.bin
+  └── vela_audio.bin
 
-$ ./gen_ota_zip.py old new --sign
-...
+  $ ./gen_ota_zip.py old new --sign
+  ...
+  # ota.zip is a signed ota package
+  $ ls *.zip
+  ota.zip
+  ```
 
-$ ls *.zip
-ota.zip
-```
+### Custom processing actions
 
-### Customize processing actions
-
-`gen_ota_zip.py` supported following three customization options:
+gen_ota_zip.py supports:
 
 * `--user_begin_script` User-defined OTA pre-processing script
-* `--user_end_script`    User-defined OTA post-processing script
-* `--user_file`   Packages the attachments into ota.zip (Used in pre- and post-processing)
 
-Specify the pre- and post- processing script and attachments during packaging. For details, see the packaging command:
+* `--user_end_script` User-defined OTA post-processing script
+
+* `--user_file` Attachments packaged into ota.zip (for use in pre-processing and post-processing stages)
+
+Put the vendor custom logic in the pre-processing script and post-processing script. When packaging, specify the pre-processing script, post-processing script and attachment file. Refer to the packaging command:
 
 ```JavaScript
-./gen_ota_zip.py new/ --debug --sign  --user_end_script testend.sh   --user_begin_script testbegin.sh  --user_file  resources/
+./gen_ota_zip.py new/ --debug --sign --user_end_script testend.sh --user_begin_script testbegin.sh --user_file resources/
 ```
 
-### **Cautions**
+### **Notes**
 
-The firmware name must match the name of the device node. The firmware must be named in vela_`<xxx>`.bin format. The prefix `vela_` and suffix `.bin` are indispensable. In addition, a device node named /dev/`<xxx>` should exist in the file system on the device. For example, if the firmware names are vela_ap.bin and vela_audio.bin, then  device nodes `/dev/ap` and `/dev/audio` must exist on the device.
+The firmware name and device node must match. The firmware to be upgraded must be named in the form of `vela_<xxx>.bin`. The prefix `vela_` and the suffix `.bin` are indispensable.
 
-## ui
+At the same time, it is necessary to ensure that there is a device node named `/dev/<xxx>` in the file system of the device.
 
-A set of easy-to-use, scalable OTA upgrade animation module, mainly including these pages `Upgrading`, `Upgrade success`, `Upgrade fail`, `Logo`.
+For example, if the firmware to be upgraded is named `vela_ap.bin` and `vela_audio.bin`, the device nodes /dev/ap and /dev/audio must exist on the device at the same time.
 
-### Precondition
+## Part 3 ui
 
-* The system supports framebuffer
-* Enable UI configuration
+Easy-to-use and highly scalable `OTA` upgrade animation module, mainly including the following pages: `Upgrading`, `Upgrade success`, `Upgrade fail` and `Logo`.
 
-```Makefile
-CONFIG_OTA_UI=y
-```
+### Prerequisites
 
-### Get help
+* The system already supports `framebuffer`.
+* Enable `OTA UI` configuration.
+  ```Makefile
+  CONFIG_OTA_UI=y
+  ```
 
+
+### Get help 
 ```Bash
 nsh> otaUI -h
  Usage: otaUI [options]
@@ -160,40 +173,35 @@ nsh> otaUI -h
                  4 : progress current:90,progress next 100
                  5 : progress current:100,progress next 100
                  6 : progress current:-1,progress next 100
-        -l logo mode.         show logo,default is upgrade UI mode
-        -c ota ui config path.         default is /resource/recovery/ota_ui_config.json
+        -l logo mode.             show logo,default is upgrade UI mode
+        -c ota ui config path.    default is /resource/recovery/ota_ui_config.json
         -h print help message.
 ```
 
-The file of ota_ui_config.json stores the resource description information.
+Among them, `ota_ui_config.json` stores the relevant resource description information:
 
-* display booting logo
+* Display the boot logo:
+  ```Bash
+  nsh> otaUI -l
+  ```
 
-```Bash
-nsh> otaUI -l
-```
+* Display upgrade progress:
+  ```Bash
+  nsh> otaUI &
+  ```
 
-* display ota progress
+* Simulate upgrade progress test:
+After running the `otaUI` program, we can use the `-t` parameter to set the upgrade progress percentage to simulate the upgrade test process. The `-t` parameter value range is `0~6`. Please refer to the help instructions. Among them, `6` is used to test the upgrade failure.
+  ```Bash
+  nsh> otaUI -t 0
+  ```
 
-```Bash
-nsh> otaUI &
-```
+## Part 4 verify
 
-* Simulated ota progress test
-
-After running the otaUI program, we can simulate the upgrade test process by using the -t parameter to set the upgrade progress percentage, the value of the -t parameter ranges from 0 to 6, you can refer to the help info, where 6 is used to test the case of upgrade failure.
-
-```Bash
-nsh> otaUI -t 0
-```
-
-## verify
-
-Vela safety verification mainly includes partition check and package check, which corresponding to avb_verify and zip_verify respectively. The two methods are basically the same. This section takes avb_verify as an example.
-
+`openvela` signature verification mainly includes partition signature verification and package signature verification, which correspond to `avb_verify` and `zip_verify` respectively. The usage of the two is basically the same. Here we take `avb_verify` as an example.
 ### Verify on the device
 
-Enable AVB
+Enable `AVB`
 
 * Config:
   ```Bash
@@ -211,13 +219,13 @@ Enable AVB
   CONFIG_ETC_ROMFS=y
   ```
 * Preset Key
-  * Build key into ROMFSETC（vendor/`<VENDOR>`/boards/`<BOARD>`/src/Makefile）
+  * Build `key` into ROMFSETC（vendor/`<VENDOR>`/boards/`<BOARD>`/src/Makefile）
     ```Makefile
     ifneq ($(CONFIG_UTILS_AVB_VERIFY)$(CONFIG_UTILS_ZIP_VERIFY),)
       RCRAWS += etc/key.avb
     endif
     ```
-  * Copy demo key pairs
+  * Copy `demo key pairs`
     ```Bash
     cd <Vela_TOP_DIR>
     cp frameworks/ota/tools/keys/key.avb \
@@ -225,17 +233,17 @@ Enable AVB
     ```
 * Usage （vendor/`<VENDOR>`/boards/`<BOARD>`/src/etc/init.d/ **rcS.bl** ）
 
-```Bash
-# avb_verify
-#    param1：file to be verified
-#    param2：Key
-avb_verify /dev/ap /etc/key.avb
-if [ $? -eq 0 ]
-then
-  boot /dev/ap
-fi
-echo "Boot failed!"
-```
+  ```Bash
+  # avb_verify
+  #    param1：file to be verified
+  #    param2：Key
+  avb_verify /dev/ap /etc/key.avb
+  if [ $? -eq 0 ]
+  then
+    boot /dev/ap
+  fi
+  echo "Boot failed!"
+  ```
 
 ### Sign image
 
