@@ -84,7 +84,7 @@ bootctl 检测到 `1` 个或者 `2` 个 slot 都是 bootable 的状态:
 
 ### 打包方式
 
-vela 提供了python打包脚本 `gen_ota_zip.py`，可根据业务需要生成整包和差分包。
+Openvela 提供了python打包脚本 `gen_ota_zip.py`，可根据业务需要生成整包和差分包。
 
 * **整包升级**
 
