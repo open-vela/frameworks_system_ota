@@ -85,7 +85,7 @@ Bootctl detects that one or two slots are bootable:
 
 ### Packaging method
 
-Vela provides a Python packaging script `gen_ota_zip.py`, which can generate full packages and differential packages according to business needs.
+Openvela provides a Python packaging script `gen_ota_zip.py`, which can generate full packages and differential packages according to business needs.
 
 * **Full package upgrade**
 
