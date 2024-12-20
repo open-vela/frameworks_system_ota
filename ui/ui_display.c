@@ -207,8 +207,13 @@ const char* ui_get_current_page_name(void)
 
 ui_result_code_e ui_timer_handler()
 {
-    lv_timer_handler();
-    usleep(UI_TICK_MS);
+    uint32_t idle;
+    idle = lv_timer_handler();
+
+    /* Minimum sleep of 1ms */
+
+    idle = idle ? idle : 1;
+    usleep(idle * 1000);
 
     return UI_SUCCESS;
 }
