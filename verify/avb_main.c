@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     AvbSlotVerifyFlags flags = 0;
     int ret;
 
-    while ((ret = getopt(argc, argv, "bchiI")) != -1) {
+    while ((ret = getopt(argc, argv, "bchiI:")) != -1) {
         switch (ret) {
         case 'b':
             break;
@@ -51,11 +51,7 @@ int main(int argc, char* argv[])
             break;
         case 'I':
             struct avb_hash_desc_t hash_desc;
-            if (argc - optind < 2) {
-                usage(argv[0]);
-                return 100;
-            }
-            if (!avb_hash_desc(argv[optind + 1], &hash_desc)) {
+            if (!avb_hash_desc(optarg, &hash_desc)) {
                 avb_hash_desc_dump(&hash_desc);
                 return 0;
             }
