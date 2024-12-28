@@ -33,6 +33,8 @@
 #define AVB_DEVICE_UNLOCKED "persist.avb.unlocked"
 #define AVB_ROLLBACK_LOCATION "persist.avb.rollback.%zu"
 
+uint64_t g_rollback_index;
+
 static AvbIOResult read_from_partition(AvbOps* ops,
     const char* partition,
     int64_t offset,
@@ -154,6 +156,14 @@ static AvbIOResult read_rollback_index(AvbOps* ops,
     return AVB_IO_RESULT_OK;
 }
 
+static AvbIOResult read_rollback_index_tmp(AvbOps* ops,
+    size_t rollback_index_location,
+    uint64_t* out_rollback_index)
+{
+    *out_rollback_index = g_rollback_index;
+    return AVB_IO_RESULT_OK;
+}
+
 AvbIOResult write_rollback_index(AvbOps* ops,
     size_t rollback_index_location,
     uint64_t rollback_index)
@@ -168,6 +178,14 @@ AvbIOResult write_rollback_index(AvbOps* ops,
     return AVB_IO_RESULT_OK;
 }
 
+AvbIOResult write_rollback_index_tmp(AvbOps* ops,
+    size_t rollback_index_location,
+    uint64_t rollback_index)
+{
+    g_rollback_index = rollback_index;
+    return AVB_IO_RESULT_OK;
+}
+
 static AvbIOResult read_is_device_unlocked(AvbOps* ops, bool* out_is_unlocked)
 {
 #ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
@@ -175,6 +193,12 @@ static AvbIOResult read_is_device_unlocked(AvbOps* ops, bool* out_is_unlocked)
 #else
     *out_is_unlocked = false;
 #endif
+    return AVB_IO_RESULT_OK;
+}
+
+static AvbIOResult read_is_device_unlocked_false(AvbOps* ops, bool* out_is_unlocked)
+{
+    *out_is_unlocked = false;
     return AVB_IO_RESULT_OK;
 }
 
@@ -278,13 +302,13 @@ int avb_verify(const char* partition, const char* key, const char* suffix, AvbSl
         get_preloaded_partition,
         write_to_partition,
         validate_vbmeta_public_key,
-        read_rollback_index,
-        write_rollback_index,
-        read_is_device_unlocked,
+        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? read_rollback_index_tmp : read_rollback_index,
+        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? write_rollback_index_tmp : write_rollback_index,
+        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? read_is_device_unlocked_false : read_is_device_unlocked,
         get_unique_guid_for_partition,
         get_size_of_partition,
-        read_persistent_value,
-        write_persistent_value,
+        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? NULL : read_persistent_value,
+        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? NULL : write_persistent_value,
         validate_public_key_for_partition
     };
     const char* partitions[] = {
@@ -297,7 +321,7 @@ int avb_verify(const char* partition, const char* key, const char* suffix, AvbSl
 
     ret = avb_slot_verify(&ops,
         partitions, suffix ? suffix : "",
-        flags | AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
+        (flags & ~UTILS_AVB_VERIFY_LOCAL_FLAG_MASK) | AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
         AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
         &slot_data);
 
