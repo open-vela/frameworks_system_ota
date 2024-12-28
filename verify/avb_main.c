@@ -33,9 +33,10 @@ void usage(const char* progname)
 int main(int argc, char* argv[])
 {
     AvbSlotVerifyFlags flags = 0;
+    const char* image = NULL;
     int ret;
 
-    while ((ret = getopt(argc, argv, "bchiI:")) != -1) {
+    while ((ret = getopt(argc, argv, "bchiI:U:")) != -1) {
         switch (ret) {
         case 'b':
             break;
@@ -57,6 +58,11 @@ int main(int argc, char* argv[])
             }
             return 1;
             break;
+        case 'U':
+            flags |= UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV;
+            image = optarg;
+            g_rollback_index = 0;
+            break;
         default:
             usage(argv[0]);
             return 10;
@@ -72,6 +78,11 @@ int main(int argc, char* argv[])
     ret = avb_verify(argv[optind], argv[optind + 1], argv[optind + 2], flags);
     if (ret != 0)
         avb_printf("%s error %d\n", argv[0], ret);
+    else if (image) {
+        ret = avb_verify(image, argv[optind + 1], argv[optind + 2], flags);
+        if (ret != 0)
+            avb_printf("%s verify %s error %d\n", argv[0], image, ret);
+    }
 
     return ret;
 }
