@@ -17,17 +17,40 @@
 #include "avb_verify.h"
 #include <unistd.h>
 
-void usage(const char* progname)
+#define usage(p) usage_line_num(p, __LINE__)
+#define PRINT_VERIFY(o, u, as, ar, p, c) \
+    avb_printf("  %-6s | %-6s | %-8s | %-8s | %-6s | %s\n", o, u, as, ar, p, c)
+
+void usage_line_num(const char* progname, const int line_num)
 {
     avb_printf("Usage: %s [-b] [-c] [-i] <partition> <key> [suffix]\n", progname);
     avb_printf("       %s [-I] <partition>\n", progname);
-    avb_printf("Examples:\n");
-    avb_printf("  1. Boot Verify\n");
+    avb_printf("       %s [-U] <image> <partition> <key>\n", progname);
+
+    avb_printf("\nVerify\n");
+    PRINT_VERIFY("Option", "Update", "Allow", "Allow", "IDX", "Description");
+    PRINT_VERIFY("", "IDX", "Same IDX", "Rollback", "in KV", "");
+    PRINT_VERIFY("----", "----", "----", "----", "----", "----");
+    PRINT_VERIFY("-b", "Y", "Y", "N", "Y", "Boot verification that enabled by default");
+    PRINT_VERIFY("-i", "Y", "Y", "Y", "Y", "Ignore rollback index error during boot verification");
+    PRINT_VERIFY("-c", "N", "N", "N", "Y", "Comparing rollback index to prevent duplicate installation");
+    PRINT_VERIFY("-U", "N", "Y", "N", "N", "Upgrade verify by comparing the rollback index in partition and image");
+
+    avb_printf("\nInfo print\n");
+    avb_printf("  %-4s Show image info\n", "-I");
+    avb_printf("  %-4s Show help\n", "-h");
+
+    avb_printf("\nExamples\n");
+    avb_printf("  -  Boot Verify\n");
     avb_printf("     %s <partition> <key> [suffix]\n", progname);
-    avb_printf("  2. Upgrade Verify\n");
+    avb_printf("  -  Comparing rollback index\n");
     avb_printf("     %s -c <image> <key> [suffix]\n", progname);
-    avb_printf("  3. Image Info\n");
+    avb_printf("  -  Upgrade Verify\n");
+    avb_printf("     %s -U <image> <partition> <key> [suffix]\n", progname);
+    avb_printf("  -  Image Info\n");
     avb_printf("     %s -I <image>\n", progname);
+
+    avb_printf("\nLine num: %d\n", line_num);
 }
 
 int main(int argc, char* argv[])
