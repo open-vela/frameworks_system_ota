@@ -123,25 +123,9 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    if (args.skip_version_check) :
-        str = \
+    str = \
 '''setprop ota.version.next `getprop ota.version.current`
 '''
-    else :
-        str = \
-'''set version_current `getprop ro.ota.version`
-
-echo "new version is "%d
-
-if [ %d -lt $version_current ]
-then
-    echo "check version failed!"%s
-    setprop ota.progress.current -1
-    exit
-fi
-
-''' % (args.version[0], args.version[0], args.otalog)
-
     fd.write(str)
 
     i = 0
