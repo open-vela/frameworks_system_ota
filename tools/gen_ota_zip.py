@@ -326,17 +326,6 @@ then
 fi
 ''' % (bin_list[i], path_list[i], args.otalog)
             fd.write(str)
-        # avoid /dev/<xxx> doesn't exist
-        str = \
-'''
-if [ ! -e %s ]
-then
-    echo "%s doesn't exist, will reboot to the old system"%s
-    setprop ota.progress.current -1
-    exit
-fi
-''' % (path_list[i], path_list[i], args.otalog)
-        fd.write(str)
         i += 1
 
     i = 0
