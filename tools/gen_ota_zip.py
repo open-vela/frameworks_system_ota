@@ -320,42 +320,25 @@ setprop ota.progress.next %d
 avb_verify -U /ota/%s %s /etc/key.avb
 if [ $? -ne 0 ]
 then
-    echo "check version failed!"%s
+    echo "check %s version failed!"%s
     setprop ota.progress.current -1
     exit
 fi
-''' % (bin_list[i], path_list[i], args.otalog)
-            fd.write(str)
-        i += 1
+''' % (bin_list[i], path_list[i], bin_list[i], args.otalog)
 
-    i = 0
-    while i < path_cnt:
-        str = 'set ret 0\n'
-        if args.upgrade_verify:
-            for upgrade in args.upgrade_verify:
-                if upgrade == bin_list[i][5:-4]:
-                    logger.info("Enable upgrade verify for %s" % upgrade)
-                    str += 'avb_verify -c /ota/%s /etc/key.avb\n' % bin_list[i]
-                    str += 'set ret $?\n'
-                    break
         str += \
 '''
-if [ $ret -eq 0 ]
+echo "install %s"%s
+time " dd if=/ota/%s of=%s bs=%s verify"
+if [ $? -ne 0 ]
 then
-  echo "install %s"%s
-  time " dd if=/ota/%s of=%s bs=%s verify"
-  if [ $? -ne 0 ]
-  then
-      echo "dd %s failed"%s
-      reboot
-  fi
-else
-  echo "skip %s"
+    echo "dd %s failed"%s
+    reboot
 fi
 setprop ota.progress.current %d
 ''' % (bin_list[i], args.otalog,
        bin_list[i], path_list[i], args.bs,
-       bin_list[i], args.otalog, bin_list[i], ota_progress_list[i])
+       bin_list[i], args.otalog, ota_progress_list[i])
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
