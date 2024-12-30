@@ -123,11 +123,6 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    str = \
-'''setprop ota.version.next `getprop ota.version.current`
-'''
-    fd.write(str)
-
     i = 0
     while i < bin_list_cnt:
         str = \
@@ -317,11 +312,7 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    if (args.skip_version_check) :
-        str = \
-'''setprop ota.version.next `getprop ota.version.current`
-'''
-    else :
+    if not args.skip_version_check :
         str = \
 '''set version_current `getprop ro.ota.version`
 
