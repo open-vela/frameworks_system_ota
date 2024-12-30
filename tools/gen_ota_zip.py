@@ -314,8 +314,7 @@ setprop ota.progress.next %d
 
     i = 0
     while i < path_cnt:
-        if not args.skip_version_check :
-            str = \
+        str = \
 '''
 avb_verify -U /ota/%s %s /etc/key.avb
 if [ $? -ne 0 ]
@@ -466,11 +465,6 @@ if __name__ == "__main__":
                         nargs=1,
                         type=int,
                         default=[0])
-
-    parser.add_argument('--skip_version_check',\
-                        help='skip version check,all version can update this ota.zip',
-                        action='store_true',
-                        default=False)
 
     parser.add_argument("--speedconf",
                         help='''
