@@ -312,25 +312,21 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    if not args.skip_version_check :
-        str = \
-'''set version_current `getprop ro.ota.version`
-
-echo "new version is "%d
-
-if [ %d -lt $version_current ]
+    i = 0
+    while i < path_cnt:
+        if not args.skip_version_check :
+            str = \
+'''
+avb_verify -U /ota/%s %s /etc/key.avb
+if [ $? -ne 0 ]
 then
     echo "check version failed!"%s
     setprop ota.progress.current -1
     exit
 fi
-
-''' % (args.version[0], args.version[0], args.otalog)
-
-    fd.write(str)
-    # avoid /dev/<xxx> doesn't exist
-    i = 0
-    while i < path_cnt:
+''' % (bin_list[i], path_list[i], args.otalog)
+            fd.write(str)
+        # avoid /dev/<xxx> doesn't exist
         str = \
 '''
 if [ ! -e %s ]
