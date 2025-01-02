@@ -11,6 +11,7 @@ import logging
 import filecmp
 import configparser
 import re
+import subprocess
 
 program_description = \
 '''
@@ -43,6 +44,7 @@ bin_path_help = \
 patch_path = []
 bin_list = []
 tools_path=''
+avbtool_path=os.path.abspath(os.path.dirname(sys.argv[0]) + '/../../../../external/avb/avb/avbtool')
 speed_dict = {}
 logging.basicConfig(format = "[%(levelname)s]%(message)s")
 logger = logging.getLogger()
@@ -314,7 +316,12 @@ setprop ota.progress.next %d
 
     i = 0
     while i < path_cnt:
-        str = \
+        str = ''
+        ret = subprocess.Popen("%s info_image --image %s/%s --rollback_index" % (avbtool_path, args.bin_path[0], bin_list[i]), shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL);
+        idx = ret.communicate()
+        if (ret.returncode == 0) and (int(idx[0]) != 0):
+            logger.debug("Enabled update verification for %s" % bin_list[i])
+            str += \
 '''
 avb_verify -U /ota/%s %s /etc/key.avb
 if [ $? -ne 0 ]
@@ -526,6 +533,9 @@ will bin size will multiply speed then calculate progress''')
         if inputstr != 'Y' and inputstr != 'y':
             exit()
 
+    if not os.path.exists(avbtool_path):
+        logger.error("avbtool: %s: No such file or directory", avbtool_path)
+        exit()
     if len((args.bin_path)) == 2:
         os.chdir(tools_path)
         if not os.path.exists("ddelta_generate"):
