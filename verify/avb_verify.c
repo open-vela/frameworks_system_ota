@@ -327,6 +327,9 @@ int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc)
     avb_vbmeta_image_header_to_host_byte_order((AvbVBMetaImageHeader*)vbmeta_buf,
         &vbmeta_header);
 
+    desc->rollback_index_location = vbmeta_header.rollback_index_location;
+    desc->rollback_index = vbmeta_header.rollback_index;
+
     descriptors = avb_descriptor_get_all(vbmeta_buf, vbmeta_num_read, &num_descriptors);
     if (!avb_descriptor_validate_and_byteswap(descriptors[0], &avb_desc)) {
         avb_error(full_partition_name, ": Descriptor is invalid.\n");
@@ -385,4 +388,6 @@ void avb_hash_desc_dump(const struct avb_hash_desc_t* desc)
         avb_printf("%02" PRIx8 "", desc->digest[i]);
     }
     avb_printf("\n");
+    avb_printf("%-16s : %" PRIu32 "\n", "Rollback Loc", desc->rollback_index_location);
+    avb_printf("%-16s : %" PRIu64 "\n", "Rollback Index", desc->rollback_index);
 }
