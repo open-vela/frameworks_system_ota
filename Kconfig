@@ -66,21 +66,6 @@ config UTILS_AVB_VERIFY_STACKSIZE
 	int "Stack size of AVB verification tools"
 	default 6144
 
-config UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
-	bool "Enable Device Lock"
-	default y
-	depends on KVDB
-
-config UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
-	bool "Enable Persistent Value"
-	default y
-	depends on KVDB
-
-config UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
-	bool "Enable Rollback Protection"
-	default y
-	depends on KVDB
-
 endif
 
 config UTILS_ZIP_VERIFY

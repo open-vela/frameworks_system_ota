@@ -16,9 +16,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#ifdef CONFIG_KVDB
-#include <kvdb.h>
-#endif
 #include <libavb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,12 +25,6 @@
 #include <unistd.h>
 
 #include "avb_verify.h"
-
-#define AVB_PERSISTENT_VALUE "persist.%s"
-#define AVB_DEVICE_UNLOCKED "persist.avb.unlocked"
-#define AVB_ROLLBACK_LOCATION "persist.avb.rollback.%zu"
-
-uint64_t g_rollback_index;
 
 static AvbIOResult read_from_partition(AvbOps* ops,
     const char* partition,
@@ -128,7 +119,7 @@ static AvbIOResult write_to_partition(AvbOps* ops,
     return AVB_IO_RESULT_OK;
 }
 
-AvbIOResult validate_vbmeta_public_key(AvbOps* ops,
+static AvbIOResult validate_vbmeta_public_key(AvbOps* ops,
     const uint8_t* public_key_data,
     size_t public_key_length,
     const uint8_t* public_key_metadata,
@@ -145,58 +136,11 @@ static AvbIOResult read_rollback_index(AvbOps* ops,
     size_t rollback_index_location,
     uint64_t* out_rollback_index)
 {
-#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
-    char key[PROP_NAME_MAX];
-
-    snprintf(key, sizeof(key), AVB_ROLLBACK_LOCATION, rollback_index_location);
-    *out_rollback_index = property_get_int64(key, 0);
-#else
     *out_rollback_index = 0;
-#endif
-    return AVB_IO_RESULT_OK;
-}
-
-static AvbIOResult read_rollback_index_tmp(AvbOps* ops,
-    size_t rollback_index_location,
-    uint64_t* out_rollback_index)
-{
-    *out_rollback_index = g_rollback_index;
-    return AVB_IO_RESULT_OK;
-}
-
-AvbIOResult write_rollback_index(AvbOps* ops,
-    size_t rollback_index_location,
-    uint64_t rollback_index)
-{
-#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_ROLLBACK_PROTECTION
-    char key[PROP_NAME_MAX];
-
-    snprintf(key, sizeof(key), AVB_ROLLBACK_LOCATION, rollback_index_location);
-    if (property_set_int64(key, rollback_index) < 0)
-        return AVB_IO_RESULT_ERROR_IO;
-#endif
-    return AVB_IO_RESULT_OK;
-}
-
-AvbIOResult write_rollback_index_tmp(AvbOps* ops,
-    size_t rollback_index_location,
-    uint64_t rollback_index)
-{
-    g_rollback_index = rollback_index;
     return AVB_IO_RESULT_OK;
 }
 
 static AvbIOResult read_is_device_unlocked(AvbOps* ops, bool* out_is_unlocked)
-{
-#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_DEVICE_LOCK
-    *out_is_unlocked = property_get_bool(AVB_DEVICE_UNLOCKED, false);
-#else
-    *out_is_unlocked = false;
-#endif
-    return AVB_IO_RESULT_OK;
-}
-
-static AvbIOResult read_is_device_unlocked_false(AvbOps* ops, bool* out_is_unlocked)
 {
     *out_is_unlocked = false;
     return AVB_IO_RESULT_OK;
@@ -222,46 +166,6 @@ static AvbIOResult get_size_of_partition(AvbOps* ops,
         return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
 
     *out_size_num_bytes = buf.st_size;
-    return AVB_IO_RESULT_OK;
-}
-
-static AvbIOResult read_persistent_value(AvbOps* ops,
-    const char* name,
-    size_t buffer_size,
-    uint8_t* out_buffer,
-    size_t* out_num_bytes_read)
-{
-#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
-    ssize_t ret;
-    char key[PROP_NAME_MAX];
-
-    snprintf(key, sizeof(key), AVB_PERSISTENT_VALUE, name);
-    ret = property_get_buffer(key, out_buffer, buffer_size);
-    if (ret == -E2BIG) {
-        *out_num_bytes_read = PROP_VALUE_MAX;
-        return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
-    } else if (ret < 0)
-        return AVB_IO_RESULT_ERROR_NO_SUCH_VALUE;
-
-    *out_num_bytes_read = ret;
-#else
-    *out_num_bytes_read = 0;
-#endif
-    return AVB_IO_RESULT_OK;
-}
-
-static AvbIOResult write_persistent_value(AvbOps* ops,
-    const char* name,
-    size_t value_size,
-    const uint8_t* value)
-{
-#ifdef CONFIG_UTILS_AVB_VERIFY_ENABLE_PERSISTENT_VALUE
-    char key[PROP_NAME_MAX];
-
-    snprintf(key, sizeof(key), AVB_PERSISTENT_VALUE, name);
-    if (property_set_buffer(key, value, value_size) < 0)
-        return AVB_IO_RESULT_ERROR_INVALID_VALUE_SIZE;
-#endif
     return AVB_IO_RESULT_OK;
 }
 
@@ -292,59 +196,55 @@ static AvbIOResult validate_public_key_for_partition(AvbOps* ops,
     return result;
 }
 
-int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags)
+int avb_verify(struct avb_params_t* params)
 {
     struct AvbOps ops = {
-        (char*)key,
+        (char*)params->key,
         NULL,
         NULL,
         read_from_partition,
         get_preloaded_partition,
         write_to_partition,
         validate_vbmeta_public_key,
-        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? read_rollback_index_tmp : read_rollback_index,
-        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? write_rollback_index_tmp : write_rollback_index,
-        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? read_is_device_unlocked_false : read_is_device_unlocked,
+        read_rollback_index,
+        NULL,
+        read_is_device_unlocked,
         get_unique_guid_for_partition,
         get_size_of_partition,
-        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? NULL : read_persistent_value,
-        (flags & UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV) ? NULL : write_persistent_value,
+        NULL,
+        NULL,
         validate_public_key_for_partition
     };
-    const char* partitions[] = {
-        partition,
-        NULL
+    const char* partitions[][2] = {
+        { params->partition, NULL },
+        { params->image, NULL },
     };
-    AvbSlotVerifyData* slot_data = NULL;
+    AvbSlotVerifyData* slot_data[2] = { 0 };
     int ret;
     int n;
 
-    ret = avb_slot_verify(&ops,
-        partitions, suffix ? suffix : "",
-        (flags & ~UTILS_AVB_VERIFY_LOCAL_FLAG_MASK) | AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
-        AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-        &slot_data);
+    for (n = 0; n < 2; n++) {
+        ret = avb_slot_verify(&ops,
+            partitions[n], params->suffix ? params->suffix : "",
+            AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION,
+            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
+            &slot_data[n]);
 
-    if (ret != AVB_SLOT_VERIFY_RESULT_OK || !slot_data)
-        return ret;
+        if (ret != AVB_SLOT_VERIFY_RESULT_OK || !slot_data[n] || (!n && !params->image))
+            goto out;
+    }
 
     for (n = 0; n < AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS; n++) {
-        uint64_t rollback_index = slot_data->rollback_indexes[n];
-        if (rollback_index) {
-            uint64_t current_rollback_index;
-            ret = ops.read_rollback_index(&ops, n, &current_rollback_index);
-            if (ret != AVB_IO_RESULT_OK)
-                goto out;
-            if (current_rollback_index != rollback_index && (flags & AVB_SLOT_VERIFY_FLAGS_NOT_UPDATE_ROLLBACK_INDEX) == 0) {
-                ret = ops.write_rollback_index(&ops, n, rollback_index);
-                if (ret != AVB_IO_RESULT_OK)
-                    goto out;
-            }
+        if (slot_data[1]->rollback_indexes[n] < slot_data[0]->rollback_indexes[n]) {
+            ret = AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX;
+            goto out;
         }
     }
 
 out:
-    avb_slot_verify_data_free(slot_data);
+    for (n = 0; n < 2; n++)
+        if (slot_data[n])
+            avb_slot_verify_data_free(slot_data[n]);
     return ret;
 }
 
@@ -358,7 +258,7 @@ int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc)
         get_preloaded_partition,
         NULL,
         validate_vbmeta_public_key,
-        read_rollback_index,
+        NULL,
         NULL,
         read_is_device_unlocked,
         get_unique_guid_for_partition,
