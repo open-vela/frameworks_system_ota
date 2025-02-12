@@ -23,9 +23,6 @@
 extern "C" {
 #endif
 
-#define UTILS_AVB_VERIFY_LOCAL_FLAG_MASK 0xf000
-#define UTILS_AVB_VERIFY_LOCAL_FLAG_NOKV 0x8000
-
 struct avb_hash_desc_t {
     uint64_t image_size;
     uint8_t hash_algorithm[32]; /* Ref: struct AvbHashDescriptor */
@@ -33,9 +30,15 @@ struct avb_hash_desc_t {
     uint8_t digest[64]; /* Max: sha512 */
 };
 
-extern uint64_t g_rollback_index;
+struct avb_params_t {
+    const char* partition;
+    const char* image;
+    const char* key;
+    const char* suffix;
+    AvbSlotVerifyFlags flags;
+};
 
-int avb_verify(const char* partition, const char* key, const char* suffix, AvbSlotVerifyFlags flags);
+int avb_verify(struct avb_params_t* params);
 int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc);
 void avb_hash_desc_dump(const struct avb_hash_desc_t* desc);
 
