@@ -267,6 +267,27 @@ def gen_diff_ota(args):
         logger.info("%s, signature success!" % args.output)
         os.rename(sign_output, args.output)
 
+def gen_progress_list(start, end, path, bin_list):
+    bin_cnt = len(bin_list)
+    ota_progress = start
+    progress_list = []
+    size_list = []
+
+    if end <= start:
+        logger.error("Generate progress list error %d %d" % (start, end))
+        exit(22)
+
+    for i in range(bin_cnt):
+        size_list.append(speed_dict[bin_list[i]] *
+                         get_file_size('%s/%s' % (path, bin_list[i])))
+
+    for i in range(bin_cnt):
+        ota_progress += float(size_list[i] / sum(size_list)) * (end - start)
+        progress_list.append(math.floor(ota_progress))
+
+    progress_list[-1] = end
+    return progress_list
+
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
     path_cnt = len(path_list)
     fd = open('%s/ota.sh' % (tmp_folder),'w')
@@ -279,20 +300,7 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
         fd.write(str + "\n")
         user_begin_script.close()
 
-    size_list = []
-    for i in range(path_cnt):
-        size_list.append(speed_dict[bin_list[i]] *
-                         get_file_size('%s/%s' % (args.bin_path[0], bin_list[i])))
-
-    ota_progress = 30.0
-    max_progress = 100 - args.user_end_script_progress
-    ota_progress_list = []
-
-    for i in range(path_cnt):
-        ota_progress += float(size_list[i] / sum(size_list)) * (max_progress - 30.0)
-        ota_progress_list.append(math.floor(ota_progress))
-
-    ota_progress_list[-1] = max_progress
+    ota_progress_list = gen_progress_list(30.0, 100 - args.user_end_script_progress, args.bin_path[0], bin_list)
     str = \
 '''set +e
 setprop ota.progress.current 30
