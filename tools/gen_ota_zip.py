@@ -300,32 +300,43 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
         fd.write(str + "\n")
         user_begin_script.close()
 
-    ota_progress_list = gen_progress_list(30.0, 100 - args.user_end_script_progress, args.bin_path[0], bin_list)
-    str = \
-'''set +e
-setprop ota.progress.current 30
-setprop ota.progress.next %d
-''' % (ota_progress_list[0])
-    fd.write(str)
-
+    verify_list = []
+    verify_path = []
     for i in range(path_cnt):
-        str = ''
         ret = subprocess.Popen("%s info_image --image %s/%s --rollback_index" % (avbtool_path, args.bin_path[0], bin_list[i]), shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL);
         idx = ret.communicate()
         if (ret.returncode == 0) and (int(idx[0]) != 0):
             logger.debug("Enabled update verification for %s" % bin_list[i])
-            str += \
+            verify_list.append(bin_list[i])
+            verify_path.append(path_list[i])
+
+    verify_progress_list = gen_progress_list(30.0, 40.0, args.bin_path[0], verify_list)
+    ota_progress_list = gen_progress_list(45.0, 100 - args.user_end_script_progress, args.bin_path[0], bin_list)
+
+    str = \
+'''set +e
+setprop ota.progress.current 30
+setprop ota.progress.next %d
+''' % (verify_progress_list[0])
+    fd.write(str)
+
+    for i in range(len(verify_list)):
+        str = \
 '''
 avb_verify -U /ota/%s %s /etc/key.avb
 if [ $? -ne 0 ]
 then
-    echo "check %s version failed!"%s
+    echo "Check %s version failed!"%s
     setprop ota.progress.current -1
-    exit
+    reboot
 fi
-''' % (bin_list[i], path_list[i], bin_list[i], args.otalog)
+setprop ota.progress.current %d
+''' % (verify_list[i], verify_path[i], verify_list[i], args.otalog, verify_progress_list[i])
+        str += 'setprop ota.progress.next %d\n' % ( verify_progress_list[i + 1] if i + 1 < len(verify_list) else ota_progress_list[0])
+        fd.write(str)
 
-        str += \
+    for i in range(path_cnt):
+        str = \
 '''
 echo "install %s"%s
 time " dd if=/ota/%s of=%s bs=%s verify"
