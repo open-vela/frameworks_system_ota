@@ -84,19 +84,15 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
         fd.write(str + "\n")
         user_begin_script.close()
 
-    i = 0
     patch_size_list = []
-    while i < bin_list_cnt:
+    for i in range(bin_list_cnt):
         patch_size_list.append(speed_dict[bin_list[i]] *
                                get_file_size('%s/patch/%spatch' % (tmp_folder, bin_list[i][:-3])))
-        i += 1
 
-    i = 0
     bin_size_list = []
-    while i < bin_list_cnt:
+    for i in range(bin_list_cnt):
         bin_size_list.append(speed_dict[bin_list[i]] *
                              get_file_size('%s/%s' % (args.bin_path[1],bin_list[i])))
-        i += 1
 
     for file in newpartition_list:
         bin_size_list.append(speed_dict[file] * get_file_size('%s/%s' % (args.bin_path[1], file)))
@@ -105,17 +101,13 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
     max_progress = 100 - args.user_end_script_progress
     ota_progress_list = []
 
-    i = 0
-    while i < bin_list_cnt:
+    for i in range(bin_list_cnt):
         ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * (max_progress - 30)
         ota_progress_list.append(math.floor(ota_progress))
-        i += 1
 
-    j = 0
-    while j < len(newpartition_list):
+    for j in range(len(newpartition_list)):
         ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - 70)
         ota_progress_list.append(math.floor(ota_progress))
-        j += 1
 
     ota_progress_list[-1] = max_progress
     str = \
@@ -125,8 +117,7 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    i = 0
-    while i < bin_list_cnt:
+    for i in range(bin_list_cnt):
         str = \
 '''
 echo "generate %s"%s
@@ -146,7 +137,6 @@ setprop ota.progress.current %d
         if i + 1 < bin_list_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
-        i += 1
 
     i = 0
     for file in newpartition_list:
@@ -289,22 +279,18 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
         fd.write(str + "\n")
         user_begin_script.close()
 
-    i = 0
     size_list = []
-    while i < path_cnt:
+    for i in range(path_cnt):
         size_list.append(speed_dict[bin_list[i]] *
                          get_file_size('%s/%s' % (args.bin_path[0], bin_list[i])))
-        i += 1
 
     ota_progress = 30.0
     max_progress = 100 - args.user_end_script_progress
     ota_progress_list = []
 
-    i = 0
-    while i < path_cnt:
+    for i in range(path_cnt):
         ota_progress += float(size_list[i] / sum(size_list)) * (max_progress - 30.0)
         ota_progress_list.append(math.floor(ota_progress))
-        i += 1
 
     ota_progress_list[-1] = max_progress
     str = \
@@ -314,8 +300,7 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    i = 0
-    while i < path_cnt:
+    for i in range(path_cnt):
         str = ''
         ret = subprocess.Popen("%s info_image --image %s/%s --rollback_index" % (avbtool_path, args.bin_path[0], bin_list[i]), shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL);
         idx = ret.communicate()
@@ -348,7 +333,6 @@ setprop ota.progress.current %d
         if i + 1 < path_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
-        i += 1
 
     if args.user_end_script:
         user_end_script = open(args.user_end_script,"r")
