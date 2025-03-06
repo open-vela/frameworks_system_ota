@@ -311,7 +311,7 @@ int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc)
     }
 
     switch (avb_desc.tag) {
-    case AVB_DESCRIPTOR_TAG_HASH:
+    case AVB_DESCRIPTOR_TAG_HASH: {
         AvbHashDescriptor avb_hash_desc;
         const AvbDescriptor* descriptor = descriptors[0];
         const uint8_t* desc_partition_name = NULL;
@@ -336,6 +336,7 @@ int avb_hash_desc(const char* full_partition_name, struct avb_hash_desc_t* desc)
         strlcpy((char*)desc->hash_algorithm, (char*)avb_hash_desc.hash_algorithm, sizeof(desc->hash_algorithm));
         memcpy(desc->digest, desc_digest, desc->digest_len);
         break;
+    }
 
     default:
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;

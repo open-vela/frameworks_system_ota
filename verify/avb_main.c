@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
         case 'i':
             params.flags |= AVB_SLOT_VERIFY_FLAGS_ALLOW_ROLLBACK_INDEX_ERROR;
             break;
-        case 'I':
+        case 'I': {
             struct avb_hash_desc_t hash_desc;
             if (!avb_hash_desc(optarg, &hash_desc)) {
                 avb_hash_desc_dump(&hash_desc);
@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
             }
             return 1;
             break;
+        }
         case 'U':
             params.image = optarg;
             break;
