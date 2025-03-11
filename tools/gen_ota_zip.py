@@ -144,40 +144,28 @@ fi
 
     fd.write(str)
 
-    str = \
-'''if [ ! -e /ota/%s ]
-then
-''' % (bin_list[bin_list_cnt - 1])
-    fd.write(str)
-
     i = 0
     while i < bin_list_cnt:
         str = \
 '''
-    echo "generate %s"%s
-    time "ddelta_apply %s %s/ /ota/%spatch"
-    if [ $? -ne 0 ]
-    then
-        echo "ddelta_apply %s failed"%s
-        setprop ota.progress.current -1
-        exit
-    fi
+echo "generate %s"%s
+time "ddelta_apply %s %s/ /ota/%spatch"
+if [ $? -ne 0 ]
+then
+    echo "ddelta_apply %s failed"%s
+    setprop ota.progress.current -1
+    exit
+fi
 
-    setprop ota.progress.current %d
+setprop ota.progress.current %d
 ''' % (bin_list[i], args.otalog,
        patch_path[i], args.ota_tmp, bin_list[i][:-3],
        bin_list[i][:-4], args.otalog,
        ota_progress_list[i])
         if i + 1 < bin_list_cnt:
-            str += '    setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
         fd.write(str)
         i += 1
-
-    str = \
-'''
-fi
-'''
-    fd.write(str)
 
     i = 0
     for file in newpartition_list:
