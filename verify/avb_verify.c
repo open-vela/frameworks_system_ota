@@ -230,9 +230,12 @@ int avb_verify(struct avb_params_t* params)
             AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
             &slot_data[n]);
 
-        if (ret != AVB_SLOT_VERIFY_RESULT_OK || !slot_data[n] || (!n && !params->image))
+        if (!params->image)
             goto out;
     }
+
+    if (!slot_data[0] || !slot_data[1])
+        goto out;
 
     for (n = 0; n < AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS; n++) {
         if (slot_data[1]->rollback_indexes[n] < slot_data[0]->rollback_indexes[n]) {
