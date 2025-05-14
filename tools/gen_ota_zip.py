@@ -285,7 +285,9 @@ def gen_progress_list(start, end, path, bin_list):
         ota_progress += float(size_list[i] / sum(size_list)) * (end - start)
         progress_list.append(math.floor(ota_progress))
 
-    progress_list[-1] = end
+    if len(progress_list) != 0:
+        progress_list[-1] = end
+
     return progress_list
 
 def gen_full_sh(path_list, bin_list, args, tmp_folder):
@@ -317,7 +319,7 @@ def gen_full_sh(path_list, bin_list, args, tmp_folder):
 '''set +e
 setprop ota.progress.current 30
 setprop ota.progress.next %d
-''' % (verify_progress_list[0])
+''' % (verify_progress_list[0] if len(verify_list) != 0 else ota_progress_list[0])
     fd.write(str)
 
     for i in range(len(verify_list)):
