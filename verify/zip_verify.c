@@ -243,6 +243,7 @@ static int verify_signature(data_block_t* pubkey, data_block_t* raw_data, data_b
     avb_sha256_update(
         &sha256_ctx, raw_data->data, raw_data->length);
     computed_hash = avb_sha256_final(&sha256_ctx);
+    assert_res(computed_hash != NULL, "Calculating MD failed!");
 
     res = !avb_rsa_verify(pubkey->data, pubkey->length,
         signature->data, signature->length,
@@ -414,7 +415,7 @@ static int verify_app(const char* app_path, const char* cert_path, size_t commen
     res = verify_signature(&avbkey, &signature_info.signed_data,
         &signature_info.signatures_content);
     free(avbkey.data);
-    assert_res(res == 0);
+    assert_res(res == 0, "Verify signature failed!");
 
     // Compare whether the app summary is consistent with the signature block summary
     res = verify_digest(app_path, app_block, &signature_info.one_digest);
