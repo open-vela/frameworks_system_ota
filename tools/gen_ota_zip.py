@@ -325,7 +325,8 @@ setprop ota.progress.next %d
     for i in range(len(verify_list)):
         str = \
 '''
-avb_verify -U /ota/%s %s /etc/key.avb
+echo "verify %s"%s
+time "avb_verify -U /ota/%s %s /etc/key.avb"
 if [ $? -ne 0 ]
 then
     echo "Check %s version failed!"%s
@@ -333,7 +334,7 @@ then
     reboot
 fi
 setprop ota.progress.current %d
-''' % (verify_list[i], verify_path[i], verify_list[i], args.otalog, verify_progress_list[i])
+''' % (verify_list[i], args.otalog, verify_list[i], verify_path[i], verify_list[i], args.otalog, verify_progress_list[i])
         str += 'setprop ota.progress.next %d\n' % ( verify_progress_list[i + 1] if i + 1 < len(verify_list) else ota_progress_list[0])
         fd.write(str)
 
