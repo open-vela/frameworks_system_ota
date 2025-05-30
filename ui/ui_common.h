@@ -17,6 +17,7 @@
 #ifndef _UI_COMMON_H_
 #define _UI_COMMON_H_
 
+#include <unistd.h>
 #include <syslog.h>
 
 #ifdef __cplusplus
