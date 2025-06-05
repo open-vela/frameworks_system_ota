@@ -189,7 +189,7 @@ def gen_diff_ota(args):
     if args.newpartition:
         newpartition_list = list(set(new_files) - set(old_files))
         for file in newpartition_list:
-            if file[0:5] != 'vela_' or (file[-4:] != '.elf' and file[-4:] != '.bin'):
+            if not file[i].startswith("vela_") or not file[i].endswith((".elf", ".bin")):
                 newpartition_list.remove(file)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
@@ -201,8 +201,8 @@ def gen_diff_ota(args):
             oldfile = '%s/%s' % (args.bin_path[0], old_files[i])
             newfile = '%s/%s' % (args.bin_path[1], new_files[j])
             if old_files[i] == new_files[j] and \
-               old_files[i][0:5] == 'vela_' and \
-               (old_files[i][-4:] == '.elf' or old_files[i][-4:] == '.bin') and \
+               old_files[i].startswith("vela_") and \
+               old_files[i].endswith((".elf", ".bin")) and \
                (filecmp.cmp(oldfile, newfile, shallow=False) != True or new_files[j][5:8] == 'ota'):
                 patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[j][:-3])
                 logger.debug(patchfile)
@@ -377,7 +377,7 @@ def gen_full_ota(args):
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(new_files)):
-        if  new_files[i][0:5] == 'vela_' and (new_files[i][-4:] == '.elf' or new_files[i][-4:] == '.bin'):
+        if new_files[i].startswith("vela_") and new_files[i].endswith((".elf", ".bin")):
             newfile = '%s/%s' % (args.bin_path[0], new_files[i])
             logger.debug("add %s" % newfile)
             ota_zip.write(newfile, new_files[i])
