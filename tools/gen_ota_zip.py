@@ -194,8 +194,13 @@ def gen_diff_ota(args):
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
 
-    old_files.sort()
-    new_files.sort()
+    if args.last_files:
+        old_files = sorted(sorted(old_files), key=lambda x: args.last_files.index(x) + len(args.last_files) if x in args.last_files else 0)
+        new_files = sorted(sorted(new_files), key=lambda x: args.last_files.index(x) + len(args.last_files) if x in args.last_files else 0)
+    else:
+        old_files.sort()
+        new_files.sort()
+
     for i in range(len(old_files)):
         for j in range(len(new_files)):
             oldfile = '%s/%s' % (args.bin_path[0], old_files[i])
@@ -375,6 +380,9 @@ def gen_full_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
     for root, dirs, new_files in os.walk("%s" % (args.bin_path[0])):pass
 
+    if args.last_files:
+        new_files = sorted(new_files, key=lambda x: args.last_files.index(x) + len(args.last_files) if x in args.last_files else 0)
+
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
     for i in range(len(new_files)):
         if new_files[i].startswith("vela_") and new_files[i].endswith((".elf", ".bin")):
@@ -520,6 +528,10 @@ will bin size will multiply speed then calculate progress''')
 
     parser.add_argument('--upgrade_verify',\
                         help='partitions enabling AVB upgrade verify',\
+                        nargs='*')
+
+    parser.add_argument('--last_files',
+                        help='The last image files to be installed',
                         nargs='*')
 
     args = parser.parse_args()
