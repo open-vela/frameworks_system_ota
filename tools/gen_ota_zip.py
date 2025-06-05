@@ -177,34 +177,34 @@ def gen_diff_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
     os.makedirs("%s/patch" % (tmp_folder.name), exist_ok = True)
 
-    for old_files in os.walk("%s" % (args.bin_path[0])):pass
+    for root, dirs, old_files in os.walk("%s" % (args.bin_path[0])):pass
 
-    for new_files in os.walk("%s" % (args.bin_path[1])):pass
+    for root, dirs, new_files in os.walk("%s" % (args.bin_path[1])):pass
 
-    if len(old_files[2]) == 0 or len(new_files[2]) == 0:
+    if len(old_files) == 0 or len(new_files) == 0:
         logger.error("No file in the path")
         exit(-1)
 
     newpartition_list = []
     if args.newpartition:
-        newpartition_list = list(set(new_files[2]) - set(old_files[2]))
+        newpartition_list = list(set(new_files) - set(old_files))
         for file in newpartition_list:
             if file[0:5] != 'vela_' or (file[-4:] != '.elf' and file[-4:] != '.bin'):
                 newpartition_list.remove(file)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
 
-    old_files[2].sort()
-    new_files[2].sort()
-    for i in range(len(old_files[2])):
-        for j in range(len(new_files[2])):
-            oldfile = '%s/%s' % (args.bin_path[0], old_files[2][i])
-            newfile = '%s/%s' % (args.bin_path[1], new_files[2][j])
-            if old_files[2][i] == new_files[2][j] and \
-               old_files[2][i][0:5] == 'vela_' and \
-               (old_files[2][i][-4:] == '.elf' or old_files[2][i][-4:] == '.bin') and \
-               (filecmp.cmp(oldfile, newfile, shallow=False) != True or new_files[2][j][5:8] == 'ota'):
-                patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[2][j][:-3])
+    old_files.sort()
+    new_files.sort()
+    for i in range(len(old_files)):
+        for j in range(len(new_files)):
+            oldfile = '%s/%s' % (args.bin_path[0], old_files[i])
+            newfile = '%s/%s' % (args.bin_path[1], new_files[j])
+            if old_files[i] == new_files[j] and \
+               old_files[i][0:5] == 'vela_' and \
+               (old_files[i][-4:] == '.elf' or old_files[i][-4:] == '.bin') and \
+               (filecmp.cmp(oldfile, newfile, shallow=False) != True or new_files[j][5:8] == 'ota'):
+                patchfile = '%s/patch/%spatch' % (tmp_folder.name, new_files[j][:-3])
                 logger.debug(patchfile)
                 if args.blksz == '0':
                     ret = os.system("%s/ddelta_generate %s %s %s" % (tools_path, oldfile, newfile, patchfile))
@@ -213,12 +213,12 @@ def gen_diff_ota(args):
                 if (ret != 0):
                     logger.error("ddelta_generate error")
                     exit(ret)
-                if new_files[2][j][5:8] != 'ota':
-                    ota_zip.write(patchfile, "%spatch" % new_files[2][j][:-3])
-                    patch_path.append('/dev/' + old_files[2][i][5:-4])
-                    bin_list.append(old_files[2][i])
+                if new_files[j][5:8] != 'ota':
+                    ota_zip.write(patchfile, "%spatch" % new_files[j][:-3])
+                    patch_path.append('/dev/' + old_files[i][5:-4])
+                    bin_list.append(old_files[i])
                 else:
-                    ota_zip.write(newfile, new_files[2][j])
+                    ota_zip.write(newfile, new_files[j])
 
     for file in newpartition_list:
         logger.debug("add %s",file)
@@ -373,17 +373,17 @@ setprop ota.progress.current %d
 
 def gen_full_ota(args):
     tmp_folder = tempfile.TemporaryDirectory()
-    for new_files in os.walk("%s" % (args.bin_path[0])):pass
+    for root, dirs, new_files in os.walk("%s" % (args.bin_path[0])):pass
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
-    for i in range(len(new_files[2])):
-        if  new_files[2][i][0:5] == 'vela_' and (new_files[2][i][-4:] == '.elf' or new_files[2][i][-4:] == '.bin'):
-            newfile = '%s/%s' % (args.bin_path[0], new_files[2][i])
+    for i in range(len(new_files)):
+        if  new_files[i][0:5] == 'vela_' and (new_files[i][-4:] == '.elf' or new_files[i][-4:] == '.bin'):
+            newfile = '%s/%s' % (args.bin_path[0], new_files[i])
             logger.debug("add %s" % newfile)
-            ota_zip.write(newfile, new_files[2][i])
-            if new_files[2][i][5:8] != 'ota':
-                patch_path.append('/dev/' + new_files[2][i][5:-4])
-                bin_list.append(new_files[2][i])
+            ota_zip.write(newfile, new_files[i])
+            if new_files[i][5:8] != 'ota':
+                patch_path.append('/dev/' + new_files[i][5:-4])
+                bin_list.append(new_files[i])
 
     for file in bin_list:
         speed_dict[file] = 1.0
