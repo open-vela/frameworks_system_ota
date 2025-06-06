@@ -126,7 +126,7 @@ if [ $? -ne 0 ]
 then
     echo "ddelta_apply %s failed"%s
     setprop ota.progress.current -1
-    exit
+    reboot
 fi
 
 setprop ota.progress.current %d
