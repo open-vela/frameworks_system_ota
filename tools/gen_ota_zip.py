@@ -103,12 +103,11 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
     ota_progress_list = []
 
     for i in range(bin_list_cnt):
-        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * gen_progress
-        ota_progress_list.append(math.floor(ota_progress))
+        ota_progress_list.insert(len(ota_progress_list) // 2, math.floor(ota_progress + float(sum(patch_size_list[:i + 1]) / sum(patch_size_list)) * gen_progress * 0.1))
+        ota_progress_list.append(math.floor(ota_progress + gen_progress * 0.1 + float(sum(patch_size_list[:i + 1]) / sum(patch_size_list)) * gen_progress * 0.9))
 
     for j in range(len(newpartition_list)):
-        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - ota_progress - gen_progress)
-        ota_progress_list.append(math.floor(ota_progress))
+        ota_progress_list.append(math.floor(ota_progress + gen_progress + float(sum(bin_size_list[bin_list_cnt:bin_list_cnt + j + 1]) / sum(bin_size_list[bin_list_cnt:])) * (max_progress - ota_progress - gen_progress)))
 
     ota_progress_list[-1] = max_progress
     str = \
@@ -118,11 +117,12 @@ setprop ota.progress.next %d
 ''' % (ota_progress_list[0])
     fd.write(str)
 
-    for i in range(bin_list_cnt):
+    bin_list_cnt *= 2
+    for i, j in zip(list(range(bin_list_cnt // 2)) * 2, range(bin_list_cnt)):
         str = \
 '''
 echo "generate %s"%s
-time "ddelta_apply %s %s/ /ota/%spatch"
+time "ddelta_apply %s %s/ /ota/%spatch %s"
 if [ $? -ne 0 ]
 then
     echo "ddelta_apply %s failed"%s
@@ -132,11 +132,11 @@ fi
 
 setprop ota.progress.current %d
 ''' % (bin_list[i], args.otalog,
-       patch_path[i], args.ota_tmp, bin_list[i][:-3],
+       patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "",
        bin_list[i][:-4], args.otalog,
-       ota_progress_list[i])
-        if i + 1 < bin_list_cnt:
-            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[i + 1])
+       ota_progress_list[j])
+        if j + 1 < bin_list_cnt:
+            str += 'setprop ota.progress.next %d\n' % (ota_progress_list[j + 1])
         fd.write(str)
 
     i = 0
