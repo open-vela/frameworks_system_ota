@@ -99,14 +99,15 @@ def gen_diff_ota_sh(patch_path, bin_list, newpartition_list, args, tmp_folder):
 
     ota_progress = 30.0
     max_progress = 100 - args.user_end_script_progress
+    gen_progress = (max_progress - ota_progress) * float(sum(bin_size_list[:bin_list_cnt]) / sum (bin_size_list))
     ota_progress_list = []
 
     for i in range(bin_list_cnt):
-        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * (max_progress - 30)
+        ota_progress += float(patch_size_list[i] / sum(patch_size_list)) * gen_progress
         ota_progress_list.append(math.floor(ota_progress))
 
     for j in range(len(newpartition_list)):
-        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - 70)
+        ota_progress += float(bin_size_list[i + j] / sum(bin_size_list)) * (max_progress - ota_progress - gen_progress)
         ota_progress_list.append(math.floor(ota_progress))
 
     ota_progress_list[-1] = max_progress
