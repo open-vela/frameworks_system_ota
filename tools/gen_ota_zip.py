@@ -121,7 +121,7 @@ setprop ota.progress.next %d
     for i, j in zip(list(range(bin_list_cnt // 2)) * 2, range(bin_list_cnt)):
         str = \
 '''
-echo "generate %s"%s
+echo "%s %s"%s
 time "ddelta_apply %s %s/ /ota/%spatch %s"
 if [ $? -ne 0 ]
 then
@@ -131,7 +131,7 @@ then
 fi
 
 setprop ota.progress.current %d
-''' % (bin_list[i], args.otalog,
+''' % ("precheck" if j < bin_list_cnt // 2 else "generate", bin_list[i], args.otalog,
        patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "",
        bin_list[i][:-4], args.otalog,
        ota_progress_list[j])
