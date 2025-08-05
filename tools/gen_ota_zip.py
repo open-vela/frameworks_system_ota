@@ -129,12 +129,20 @@ then
     setprop ota.progress.current -1
     reboot
 fi
-
-setprop ota.progress.current %d
 ''' % ("precheck" if j < bin_list_cnt // 2 else "generate", bin_list[i], args.otalog,
        patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "",
-       bin_list[i][:-4], args.otalog,
-       ota_progress_list[j])
+       bin_list[i][:-4], args.otalog)
+        if j < bin_list_cnt // 2:
+            str = \
+'''
+if [ "$ddelta_precheck" == "1" ]
+then
+%s
+else
+    echo "precheck %s skipped"%s
+fi
+''' % (re.sub(r'^(?!$)', r'    ', str, flags=re.MULTILINE), bin_list[i], args.otalog)
+        str += 'setprop ota.progress.current %d\n' % ota_progress_list[j]
         if j + 1 < bin_list_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[j + 1])
         fd.write(str)
