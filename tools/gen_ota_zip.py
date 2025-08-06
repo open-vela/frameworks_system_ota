@@ -122,7 +122,7 @@ setprop ota.progress.next %d
         str = \
 '''
 echo "%s %s"%s
-time "ddelta_apply %s %s/ /ota/%spatch %s"
+time "ddelta_apply %s %s/ /ota/%spatch %s%s"
 if [ $? -ne 0 ]
 then
     echo "ddelta_apply %s failed"%s
@@ -130,7 +130,7 @@ then
     reboot
 fi
 ''' % ("precheck" if j < bin_list_cnt // 2 else "generate", bin_list[i], args.otalog,
-       patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "",
+       patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "", args.otalog,
        bin_list[i][:-4], args.otalog)
         if j < bin_list_cnt // 2:
             str = \
