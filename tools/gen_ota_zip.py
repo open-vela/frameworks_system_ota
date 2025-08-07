@@ -145,6 +145,8 @@ fi
         str += 'setprop ota.progress.current %d\n' % ota_progress_list[j]
         if j + 1 < bin_list_cnt:
             str += 'setprop ota.progress.next %d\n' % (ota_progress_list[j + 1])
+        if j + 1 == bin_list_cnt // 2:
+            str += '\nsetprop persist.ota.precheck.finished 1\n'
         fd.write(str)
 
     i = 0
