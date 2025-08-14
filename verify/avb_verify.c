@@ -26,6 +26,26 @@
 
 #include "avb_verify.h"
 
+static void dump_buffer(const char* msg, const uint8_t* buffer, size_t num_bytes)
+{
+    size_t i;
+
+    if (msg) {
+        avb_printf("%s (%p):\n", msg, buffer);
+    }
+
+    for (i = 0; i < num_bytes; i++) {
+        if (i % 16 == 0) {
+            if (i != 0) {
+                avb_printf("\n");
+            }
+            avb_printf("%04zx: ", i);
+        }
+        avb_printf("%02" PRIx8 " ", buffer[i]);
+    }
+    avb_printf("\n");
+}
+
 static AvbIOResult read_from_partition(AvbOps* ops,
     const char* partition,
     int64_t offset,
@@ -190,6 +210,10 @@ static AvbIOResult validate_public_key_for_partition(AvbOps* ops,
         ops->user_data, 0, public_key_length, key_data, &key_length);
     if (result == AVB_IO_RESULT_OK) {
         *out_is_trusted = memcmp(key_data, public_key_data, public_key_length) == 0;
+        if (!*out_is_trusted) {
+            dump_buffer(ops->user_data, key_data, key_length);
+            dump_buffer("vbmeta pub_key", public_key_data, public_key_length);
+        }
     }
 
     free(key_data);
