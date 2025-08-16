@@ -127,7 +127,7 @@ if [ $? -ne 0 ]
 then
     echo "ddelta_apply %s failed"%s
     setprop ota.progress.current -1
-    reboot
+    exit
 fi
 ''' % ("precheck" if j < bin_list_cnt // 2 else "generate", bin_list[i], args.otalog,
        patch_path[i], args.ota_tmp, bin_list[i][:-3], "precheck" if j < bin_list_cnt // 2 else "", args.otalog,
@@ -158,7 +158,8 @@ time "dd if=/ota/%s of=%s bs=%s verify"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
-    reboot
+    setprop ota.progress.current -1
+    exit
 fi
 setprop ota.progress.current %d
 ''' %(file, args.otalog, file,'/dev/' + file[5:-4],
@@ -347,7 +348,7 @@ if [ $? -ne 0 ]
 then
     echo "Check %s version failed!"%s
     setprop ota.progress.current -1
-    reboot
+    exit
 fi
 setprop ota.progress.current %d
 ''' % (verify_list[i], args.otalog, verify_list[i], verify_path[i], verify_list[i], args.otalog, verify_progress_list[i])
@@ -362,7 +363,8 @@ time " dd if=/ota/%s of=%s bs=%s verify"
 if [ $? -ne 0 ]
 then
     echo "dd %s failed"%s
-    reboot
+    setprop ota.progress.current -1
+    exit
 fi
 setprop ota.progress.current %d
 ''' % (bin_list[i], args.otalog,
