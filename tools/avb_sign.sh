@@ -49,13 +49,13 @@ __help(){
 }
 
 help(){
-  echo -e "Usage: $0 <image2sign> <partition_size>" \
-          "[options]\n"
-  _help "<image2sign>" "Full path of image to be signed"
+  echo -e "Usage: $0 image1 partition_size1 [item-options1]" \
+                    "image2 partition_size2 [item-options2]..."
+  _help "<image>" "Full path of imageX to be signed"
   __help "NOTE" "The \"basename\" must BE SAME AS partition name, OR, "
   __help ""     "using additional \"-P\" option."
-  _help "<partition_size>" "Partition size (*$KSIZE)"
-  echo -e "\nOptions:"
+  _help "<partition_size>" "Partition size in KB"
+  echo -e "\nitem-options:"
   _help "[-a algorithm]" "Algorithm of sign, ${DEFAULT_ALG} by default"
   printf "      %-12s   %s" "Supported" && echo "${SUPPORTED_ALG[@]}"
   _help "[-k key_path]" "Path of private key, ${DEFAULT_KEY} by default"
@@ -77,7 +77,6 @@ fatal(){
   echo -e "FATAL: $@"
   exit 2
 }
-
 
 check_alg(){
   local needle="$1"
@@ -209,7 +208,7 @@ sign_image() {
   printvar partition_name
   printvar private_key
   printvar algorithm
-  [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" OPTIONS "${opts[*]}"
+  [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" options "${opts[*]}"
 
   add_hash_footer "$working_image_path" "$partition_size" "$partition_name" "$private_key" "$algorithm" "${opts[@]}" \
     || fatal "Signing failed for $image_path"
@@ -220,47 +219,85 @@ sign_image() {
   return 0
 }
 
-[[ $# -lt 2 ]] && help
-IMAGE2SIGN=$1
-PARTITION_SIZE=$(($2 * $KSIZE)) # KB -> B # TODO : Get from partition table
-INPUT_FORMAT="auto"
-shift; shift
-while getopts "k:a:o:P:I:" opt ; do
-  case $opt in
-    k)
-      IN_PRIVKEY=$OPTARG
-      ;;
-    a)
-      ALGORITHM=$OPTARG
-      ;;
-    o)
-      OPTIONS=(${OPTIONS[@]} $OPTARG)
-      ;;
-    P)
-      DEV_PATH=$OPTARG
-      ;;
-    I)
-      if [[ "$OPTARG" != "ihex" && "$OPTARG" != "binary" ]]; then
-          fatal "Unsupported input format: $OPTARG (must be ihex or binary)"
-      fi
-      INPUT_FORMAT=$OPTARG
-      ;;
-    ?)
-      help
-      ;;
-  esac
-done
+IN_PRIVKEY=$DEFAULT_KEY
+ALGORITHM=$DEFAULT_ALG
 
-IN_PRIVKEY=${IN_PRIVKEY:-$DEFAULT_KEY}
-ALGORITHM=${ALGORITHM:-$DEFAULT_ALG}
-
-# Determine partition name
-if [ -z $DEV_PATH ] ; then
-  DEV_PATH="/dev/$(basename $IMAGE2SIGN)"
-fi
-
-# Sign
-  if ! sign_image "$IMAGE2SIGN" "$PARTITION_SIZE" "$DEV_PATH" "$IN_PRIVKEY" "$ALGORITHM" "$INPUT_FORMAT" "${OPTIONS[@]}"; then
-    fatal "signing failed for $image"
+parse_arg() {
+  if [ $# -lt 2 ]; then
+    help
   fi
-echo -e "Result: \e[1;37mSUCC\e[0m"
+
+  while [ $# -gt 0 ]; do
+    local image="" psize="" key="" alg="" part="" fmt="" item_opts_str="" item_opts=()
+    image="$1"
+    shift || { echo "Error: Missing image argument"; help; }
+
+    if [[ -z "$image" ]]; then
+      echo "Error: cannot get image (empty value)"
+      help
+    elif [[ "$image" == -* ]]; then
+      echo "Error: Unexpected option '$image' - expected an image path"
+      help
+    elif [[ $# -lt 1 ]]; then
+      echo "Error: Missing size (KB) for image: $image"
+      help
+    else
+      psize=$(( "$1" * KSIZE ))
+      shift
+      if ! echo "$psize" | grep -Eq '^[0-9]+$'; then
+        echo "Error: Size must be an integer KB (got invalid value: $psize)"
+        help
+      fi
+    fi
+
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -k)
+          shift; [[ $# -lt 1 ]] && fatal "Option -k requires an argument"
+          key="$1"; shift
+          ;;
+        -a)
+          shift; [[ $# -lt 1 ]] && fatal "Option -a requires an argument"
+          alg="$1"; shift
+          ;;
+        -o)
+          shift; [[ $# -lt 1 ]] && fatal "Option -o requires an argument"
+          item_opts_str="$item_opts_str $1"; shift
+          ;;
+        -P)
+          shift; [[ $# -lt 1 ]] && fatal "Option -P requires an argument"
+          part="$1"; shift
+          ;;
+        -I)
+          shift; [[ $# -lt 1 ]] && fatal "Option -I requires an argument"
+          [[ "$1" != "ihex" && "$1" != "binary" ]] && \
+            fatal "Unsupported input format: $1 (must be ihex or binary)"
+          fmt="$1"; shift
+          ;;
+        ?)
+          help
+          ;;
+        -*)
+          echo "Unsupported item option: $1"
+          help
+          ;;
+        *)
+          break
+          ;;
+      esac
+    done
+    [[ -z "$key" ]] && key="$IN_PRIVKEY"
+    [[ -z "$alg" ]] && alg="$ALGORITHM"
+    [[ -z "$fmt" ]] && fmt="auto"
+    [[ -z "$part" ]] && part=$(basename "$image")
+
+    # Convert item options string back to array
+    read -ra item_opts <<< "$item_opts_str"
+
+    # Sign the image
+    sign_image "$image" "$psize" "$part" "$key" "$alg" "$fmt" "${item_opts[@]}" \
+      || fatal "signing failed for $image"
+  done
+}
+
+parse_arg "$@"
