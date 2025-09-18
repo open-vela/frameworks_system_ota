@@ -30,14 +30,12 @@ readonly DEFAULT_KEY=$KEY_PATH/key.pem
 readonly DEFAULT_ALG=SHA256_RSA2048
 readonly SUPPORTED_ALG=(SHA256_RSA2048 SHA256_RSA4096 SHA256_RSA8192 \
                         SHA512_RSA2048 SHA512_RSA4096 SHA512_RSA8192)
-
 readonly KSIZE=1024
-
 TMP_BIN=$(mktemp /tmp/signed_temp.XXXXXX.bin)
 TMP_HEX=$(mktemp /tmp/signed_temp.XXXXXX.hex)
 
 cleanup() {
-    rm -f "$TMP_BIN" "$TMP_HEX"
+  rm -f "$TMP_BIN" "$TMP_HEX"
 }
 trap cleanup EXIT
 
@@ -49,6 +47,7 @@ __help(){
   shift
   printf "   %s\n" "$@"
 }
+
 help(){
   echo -e "Usage: $0 <image2sign> <partition_size>" \
           "[options]\n"
@@ -67,15 +66,24 @@ help(){
   _help "[-I format]" "Input format (ihex or binary), auto-detect by default"
   exit 1
 }
+
 check_e(){
   if [ ! -e "$1" ]; then
     fatal "File not found: $1"
   fi
 }
+
 fatal(){
   echo -e "FATAL: $@"
   exit 2
 }
+
+
+check_alg(){
+  local needle="$1"
+  printf '%s\n' "${SUPPORTED_ALG[@]}" | grep -Fxq "$needle"
+}
+
 printvar(){
   [[ $# -lt 2 ]] \
     && printf "%-16s : %s\n" $1 ${!1} \
@@ -94,24 +102,128 @@ if ! python3 -c "import intelhex" >/dev/null 2>&1; then
 fi
 
 get_base_addr() {
-    local HEX_FILE="$1"
-    local BASE_ADDR
-    BASE_ADDR=$("$HEXINFO" "$HEX_FILE" | grep -oE 'first: 0x[0-9a-fA-F]+' | \
-                grep -oE '0x[0-9a-fA-F]+' | \
-                sort -k1,1n | \
-                head -n 1)
+  local HEX_FILE="$1"
+  local BASE_ADDR
+  BASE_ADDR=$("$HEXINFO" "$HEX_FILE" | grep -oE 'first: 0x[0-9a-fA-F]+' | \
+              grep -oE '0x[0-9a-fA-F]+' | \
+              sort -k1,1n | \
+              head -n 1)
 
-    if [ -z "$BASE_ADDR" ]; then
-        fatal "can get base addr from $HEX_FILE "
+  if [ -z "$BASE_ADDR" ]; then
+    fatal "can get base addr from $HEX_FILE "
+  fi
+
+  echo "$BASE_ADDR"
+  return 0
+}
+
+auto_detect_format() {
+  local image="$1"
+  local fmt="$2"
+  if [ -z "$fmt" ] || [ "$fmt" = "auto" ]; then
+    if "$HEXINFO" "$image" > /dev/null 2>&1; then
+      echo "ihex"
+    else
+      echo "binary"
     fi
+  else
+    echo "$fmt"
+  fi
+}
 
-    echo "$BASE_ADDR"
+pre_process() {
+  local image="$1"
+  local input_format="$2"
+  local working_image=""
+  if [ "$input_format" = "ihex" ]; then
+    "$HEX2BIN" "--pad=00" "$image" "$TMP_BIN" || return 1
+    working_image="$TMP_BIN"
+  else
+    working_image="$image"
+  fi
+  echo "$working_image"
+}
+
+add_hash_footer() {
+  local working_image="$1"
+  local part_size="$2"
+  local part_name="$3"
+  local key="$4"
+  local alg="$5"
+  shift 5
+  local opts=( "$@" )
+
+  "$AVBTOOL" add_hash_footer --image "$working_image" \
+    --partition_size "$part_size" \
+    --partition_name "$part_name" \
+    --key "$key" --algorithm "$alg" "${opts[@]}" 2>&1 \
+    || fatal "add_hash_footer failed for $working_image"
+}
+
+post_process() {
+  local original_image="$1"
+  local input_format="$2"
+  local working_image="$3"
+  if [ "$input_format" != "ihex" ]; then
     return 0
+  fi
+  local start_addr re_addr output_image
+  start_addr=$(get_base_addr "$original_image") || return 1
+  "$BIN2HEX" --offset "$start_addr" "$working_image" "$TMP_HEX" || return 1
+  output_image="${original_image%.*}.hex"
+  re_addr=$(get_base_addr "$TMP_HEX") || return 1
+  if [ "$start_addr" != "$re_addr" ]; then
+    echo "Start address changed after sign: $start_addr -> $re_addr"
+    return 2
+  fi
+  cp "$TMP_HEX" "$output_image"
+  return 0
+}
+
+sign_image() {
+  local image_path="$1"
+  local partition_size="$2"
+  local partition_name="$3"
+  local private_key="$4"
+  local algorithm="$5"
+  local input_fmt="$6"
+  shift 6
+  local opts=( "$@" )
+
+  check_e "$image_path"
+  check_e "$private_key"
+
+  if ! check_alg "$algorithm" ; then
+    fatal "Unsupported algorithmorithm. Supported: ${SUPPORTED_algorithm[@]}"
+  fi
+
+  local image_format
+  image_format=$(auto_detect_format "$image_path" "$input_fmt")
+
+  local working_image_path
+  working_image_path=$(pre_process "$image_path" "$image_format") || fatal "HEX to BIN conversion failed"
+
+  printvar image_path
+  printvar image_format
+  printvar partition_size "bytes"
+  printvar partition_name
+  printvar private_key
+  printvar algorithm
+  [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" OPTIONS "${opts[*]}"
+
+  add_hash_footer "$working_image_path" "$partition_size" "$partition_name" "$private_key" "$algorithm" "${opts[@]}" \
+    || fatal "Signing failed for $image_path"
+
+  post_process "$image_path" "$image_format" "$working_image_path" \
+    || fatal "post_process (BIN->HEX) failed for $image_path"
+
+  return 0
 }
 
 [[ $# -lt 2 ]] && help
 IMAGE2SIGN=$1
 PARTITION_SIZE=$(($2 * $KSIZE)) # KB -> B # TODO : Get from partition table
+INPUT_FORMAT="auto"
 shift; shift
 while getopts "k:a:o:P:I:" opt ; do
   case $opt in
@@ -142,60 +254,13 @@ done
 IN_PRIVKEY=${IN_PRIVKEY:-$DEFAULT_KEY}
 ALGORITHM=${ALGORITHM:-$DEFAULT_ALG}
 
-check_e $IMAGE2SIGN
-check_e $IN_PRIVKEY
-
-if [ -z "$INPUT_FORMAT" ]; then
-    if "$HEXINFO" "$IMAGE2SIGN" > /dev/null 2>&1; then
-        INPUT_FORMAT="ihex"
-    else
-        INPUT_FORMAT="binary"
-    fi
-    echo "Auto-detected input format: $INPUT_FORMAT"
-fi
-
-if ! echo ${SUPPORTED_ALG[@]} | grep $ALGORITHM > /dev/null ; then
-  fatal "Algorithm Supported: ${SUPPORTED_ALG[@]}"
-fi
-
-# Get partition name
+# Determine partition name
 if [ -z $DEV_PATH ] ; then
   DEV_PATH="/dev/$(basename $IMAGE2SIGN)"
 fi
 
-# Info
-if [ "$INPUT_FORMAT" = "ihex" ]; then
-    "$HEX2BIN" "$IMAGE2SIGN" "$TMP_BIN" \
-      || fatal "HEX to BIN conversion failed"
-    WORKING_IMAGE="$TMP_BIN"
-else
-    WORKING_IMAGE="$IMAGE2SIGN"
-fi
-
-printvar IMAGE2SIGN
-printvar INPUT_FORMAT "format"
-printvar PARTITION_SIZE "bytes"
-printvar DEV_PATH
-printvar IN_PRIVKEY
-printvar ALGORITHM
-[[ ${#OPTIONS[@]} -gt 0 ]] && printf "%-16s : " OPTIONS && echo "${OPTIONS[@]}"
-
 # Sign
-$AVBTOOL add_hash_footer --image $WORKING_IMAGE \
-        --partition_size $PARTITION_SIZE \
-        --partition_name $DEV_PATH \
-        --key $IN_PRIVKEY --algorithm $ALGORITHM ${OPTIONS[@]} \
-        || fatal "Signing failed"
-
-if [ "$INPUT_FORMAT" = "ihex" ]; then
-    START_ADDR=$(get_base_addr "$IMAGE2SIGN")
-    "$BIN2HEX" --offset "$START_ADDR" "$WORKING_IMAGE" "$TMP_HEX" \
-      || fatal "BIN to HEX conversion failed"
-    OUTPUT_IMAGE="${IMAGE2SIGN%.*}.hex"
-    RECHECK_ADDR=$(get_base_addr "$TMP_HEX")
-    if [ "$START_ADDR" != "$RECHECK_ADDR" ]; then
-        fatal "Start address changed after sign: $START_ADDR -> $RECHECK_ADDR"
-    fi
-    cp "$TMP_HEX" "$OUTPUT_IMAGE"
-fi
+  if ! sign_image "$IMAGE2SIGN" "$PARTITION_SIZE" "$DEV_PATH" "$IN_PRIVKEY" "$ALGORITHM" "$INPUT_FORMAT" "${OPTIONS[@]}"; then
+    fatal "signing failed for $image"
+  fi
 echo -e "Result: \e[1;37mSUCC\e[0m"
