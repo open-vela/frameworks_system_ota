@@ -40,16 +40,16 @@ cleanup() {
 trap cleanup EXIT
 
 _help(){
-  printf "  %-16s   %s\n" "${1}" "${2}"
+  printf "  %-20s   %s\n" "${1}" "${2}"
 }
 __help(){
-  printf "      %-12s" "${1}"
+  printf "      %-16s" "${1}"
   shift
   printf "   %s\n" "$@"
 }
 
 help(){
-  echo -e "Usage: $0 image1 partition_size1 [item-options1]" \
+  echo -e "Usage: $0 [global-options] image1 partition_size1 [item-options1]" \
                     "image2 partition_size2 [item-options2]..."
   _help "<image>" "Full path of imageX to be signed"
   __help "NOTE" "The \"basename\" must BE SAME AS partition name, OR, "
@@ -57,13 +57,27 @@ help(){
   _help "<partition_size>" "Partition size in KB"
   echo -e "\nitem-options:"
   _help "[-a algorithm]" "Algorithm of sign, ${DEFAULT_ALG} by default"
-  printf "      %-12s   %s" "Supported" && echo "${SUPPORTED_ALG[@]}"
+  printf "      %-16s   %s" "Supported" && echo "${SUPPORTED_ALG[@]}"
   _help "[-k key_path]" "Path of private key, ${DEFAULT_KEY} by default"
-  _help "[-o options]" "Option(s) append to avbtool"
+  _help "[-o options]" "Option(s) append to avbtool add_hash_footer"
   __help "--padding_ff" "Padding 0xff for DO_NOT_CARE area"
   _help "[-P verify_path]" "Path of FILE to be verified"
   __help "FILE" "eg. Device point(/dev/ap), ELF(/ota/ota.elf), ..."
   _help "[-I format]" "Input format (ihex or binary), auto-detect by default"
+  echo -e "\nglobal-options:"
+  _help "[--make_vbmeta vbmeta_path]" "Enable vbmeta mode and output final vbmeta image to vbmeta_path"
+  __help "all images will generate a .vbmeta file in the same directory of vbmeta_path"
+  __help "and the final vbmeta image will include all these .vbmeta files"
+  __help "'--do_not_append_vbmeta_image' is added to each image automatically, so image will not include vbmeta structure"
+  _help "[--alg algorithm]" "Global algorithm of sign and for vbmeta, ${DEFAULT_ALG} by default"
+  _help "[--key key_path]" "Path of private key to make vbmeta, ${DEFAULT_KEY} by default"
+  _help "[--opt options]" "Options append to avbtool make_vbmeta_image, must be used with --make_vbmeta"
+  _help "[--format format]" "Output vbmeta format (ihex or binary), must be used with --make_vbmeta"
+  _help "[--addr addr]" "Output vbmeta address (hex), 0x0 by default, for example: 0x80000000, must be used with --make_vbmeta"
+  echo -e "\n[example1] sign multi image and generate vbmeta for each image:"
+  _help "bash avb_sign.sh vela_bl.hex 256 -P /dev/bl -a SHA256_RSA2048 -k key1.pem vela_ap.hex 1776 -P /dev/ap -a SHA512_RSA4096 -k key2.pem"
+  echo -e "\n[example2] sign multi image and generate vbmeta image:"
+  _help "bash avb_sign.sh --make_vbmeta vbmeta.img --format ihex --addr 0x80000000 --alg SHA256_RSA2048 --key key.pem vela_bl.hex 256 -P /dev/bl vela_ap.hex 1776 -P /dev/ap"
   exit 1
 }
 
@@ -159,6 +173,14 @@ add_hash_footer() {
     || fatal "add_hash_footer failed for $working_image"
 }
 
+bin2hex() {
+  local addr="$1"
+  local bin="$2"
+  local hex="$3"
+  "$BIN2HEX" --offset "$addr" "$bin" "$hex" || return 1
+  return 0
+}
+
 post_process() {
   local original_image="$1"
   local input_format="$2"
@@ -168,7 +190,7 @@ post_process() {
   fi
   local start_addr re_addr output_image
   start_addr=$(get_base_addr "$original_image") || return 1
-  "$BIN2HEX" --offset "$start_addr" "$working_image" "$TMP_HEX" || return 1
+  bin2hex $start_addr "$working_image" "$TMP_HEX" || return 1
   output_image="${original_image%.*}.hex"
   re_addr=$(get_base_addr "$TMP_HEX") || return 1
   if [ "$start_addr" != "$re_addr" ]; then
@@ -202,7 +224,7 @@ sign_image() {
   local working_image_path
   working_image_path=$(pre_process "$image_path" "$image_format") || fatal "HEX to BIN conversion failed"
 
-  printvar image_path
+  printvar image_path "sign"
   printvar image_format
   printvar partition_size "bytes"
   printvar partition_name
@@ -219,13 +241,110 @@ sign_image() {
   return 0
 }
 
+make_vbmeta_image() {
+  local out_vbmeta="$1"
+  local private_key="$2"
+  local algorithm="$3"
+  local output_format="$4"
+  local output_addr="$5"
+  shift 5
+  local opts=( "$@" )
+
+  if [ -z "$out_vbmeta" ]; then
+    fatal "Output vbmeta image path not specified"
+  fi
+
+  if [ -e "$out_vbmeta" ]; then
+    rm -f "$out_vbmeta"
+  fi
+
+  if ! check_alg "$algorithm" ; then
+    fatal "Unsupported algorithmorithm. Supported: ${SUPPORTED_algorithm[@]}"
+  fi
+
+  printvar out_vbmeta "make_vbmeta"
+  printvar private_key
+  printvar algorithm
+  printvar output_format
+  printvar output_addr
+  [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" options "${opts[*]}"
+
+  "$AVBTOOL" make_vbmeta_image --output "$TMP_BIN" \
+    --key "$private_key" --algorithm "$algorithm" "${opts[@]}" \
+    || fatal "make_vbmeta_image failed for $TMP_BIN"
+
+  if [ "$output_format" == "ihex" ]; then
+    bin2hex "$output_addr" "$TMP_BIN" "$TMP_HEX" || return 1
+    cp "$TMP_HEX" "$out_vbmeta"
+  else
+    cp "$TMP_BIN" "$out_vbmeta"
+  fi
+
+  return 0
+}
+
 IN_PRIVKEY=$DEFAULT_KEY
 ALGORITHM=$DEFAULT_ALG
+VBMETA_OPTS_STR=""
+VBMETA_OPTS=()
+VBMETA_FMT="auto"
+VBMETA_MODE=0
+VBMETA_OUTPUT=""
+VBMETA_PATH=""
+VBMETA_HEX_ADDR=""
+VBMETA_ADDR="0x0"
 
 parse_arg() {
   if [ $# -lt 2 ]; then
     help
   fi
+
+  #parse global options
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --make_vbmeta)
+        shift; [[ $# -lt 1 ]] && fatal "global option --make_vbmeta requires an argument"
+        VBMETA_MODE=1
+        VBMETA_OUTPUT=$1
+        VBMETA_PATH=$(dirname "$VBMETA_OUTPUT")
+        if [ ! -d "$VBMETA_PATH" ]; then
+          fatal "global option --make_vbmeta requires a valid output path argument"
+        fi
+        shift
+        ;;
+      --alg)
+        shift; [[ $# -lt 1 ]] && fatal "global option --alg requires an argument"
+        ALGORITHM=$1; shift
+        ;;
+      --key)
+        shift; [[ $# -lt 1 ]] && fatal "global option --key requires an argument"
+        IN_PRIVKEY=$1; shift
+        ;;
+      --opt)
+        [[ $VBMETA_MODE != 1 ]] && fatal "global option --opt must be used with --make_vbmeta"
+        shift; [[ $# -lt 1 ]] && fatal "global option --opt requires an argument"
+        VBMETA_OPTS_STR="$VBMETA_OPTS_STR $1"; shift
+        ;;
+       --format)
+        [[ $VBMETA_MODE != 1 ]]  && fatal "global option --format must be used with --make_vbmeta"
+        shift; [[ $# -lt 1 ]] && fatal "global option --format requires an argument"
+        [[ "$1" != "ihex" && "$1" != "binary" && "$1" != "auto" ]] && \
+          fatal "Unsupported input format: $1 (--format must be ihex, binary or auto)"
+        VBMETA_FMT="$1"; shift
+        ;;
+       --addr)
+        [[ $VBMETA_MODE != 1 ]]  && fatal "global option --addr must be used with --make_vbmeta"
+        shift; [[ $# -lt 1 ]] && fatal "global option --addr requires an argument"
+        VBMETA_ADDR="$1"; shift
+        ;;
+      --help|-h)
+        help
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
 
   while [ $# -gt 0 ]; do
     local image="" psize="" key="" alg="" part="" fmt="" item_opts_str="" item_opts=()
@@ -294,6 +413,13 @@ parse_arg() {
     # Convert item options string back to array
     read -ra item_opts <<< "$item_opts_str"
 
+    # Add vbmeta related options if in vbmeta mode
+    if [[ $VBMETA_MODE == 1 ]]; then
+      item_opts=(${item_opts[@]} --do_not_append_vbmeta_image)
+      item_opts=(${item_opts[@]} --output_vbmeta_image $VBMETA_PATH/$(basename "$image").vbmeta)
+      VBMETA_OPTS=(${VBMETA_OPTS[@]} --include_descriptors_from_image $VBMETA_PATH/$(basename "$image").vbmeta)
+    fi
+
     # Sign the image
     sign_image "$image" "$psize" "$part" "$key" "$alg" "$fmt" "${item_opts[@]}" \
       || fatal "signing failed for $image"
@@ -301,3 +427,9 @@ parse_arg() {
 }
 
 parse_arg "$@"
+
+if [[ $VBMETA_MODE == 1 ]]; then
+  read -ra TEMP_OPTS <<< "$VBMETA_OPTS_STR"; VBMETA_OPTS=(${VBMETA_OPTS[@]} ${TEMP_OPTS[@]})
+  make_vbmeta_image "$VBMETA_OUTPUT" "$IN_PRIVKEY" "$ALGORITHM" "$VBMETA_FMT" "$VBMETA_ADDR" "${VBMETA_OPTS[@]}"  \
+  || fatal "make_vbmeta_image failed for $VBMETA_OUTPUT"
+fi
