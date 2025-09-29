@@ -74,10 +74,14 @@ help(){
   _help "[--opt options]" "Options append to avbtool make_vbmeta_image, must be used with --make_vbmeta"
   _help "[--format format]" "Output vbmeta format (ihex or binary), must be used with --make_vbmeta"
   _help "[--addr addr]" "Output vbmeta address (hex), 0x0 by default, for example: 0x80000000, must be used with --make_vbmeta"
+  _help "[--append_vbmeta image]" "Output vbmeta can be append to a image, must NOT be used with --make_vbmeta"
+  _help "[--append_opt opts]" "Append option, must be used with --append_vbmeta"
   echo -e "\n[example1] sign multi image and generate vbmeta for each image:"
   _help "bash avb_sign.sh vela_bl.hex 256 -P /dev/bl -a SHA256_RSA2048 -k key1.pem vela_ap.hex 1776 -P /dev/ap -a SHA512_RSA4096 -k key2.pem"
   echo -e "\n[example2] sign multi image and generate vbmeta image:"
   _help "bash avb_sign.sh --make_vbmeta vbmeta.img --format ihex --addr 0x80000000 --alg SHA256_RSA2048 --key key.pem vela_bl.hex 256 -P /dev/bl vela_ap.hex 1776 -P /dev/ap"
+  echo -e "\n[example3] sign multi image and generate vbmeta image, then append this vbmeta to one image:"
+  _help "bash avb_sign.sh --append_vbmeta vela_ap.hex --part_size 1776 --block_size 16384 --alg SHA256_RSA2048 --key key.pem vela_bl.hex 256 -P /dev/bl vela_ap.hex 1776 -P /dev/ap"
   exit 1
 }
 
@@ -222,7 +226,8 @@ sign_image() {
   image_format=$(auto_detect_format "$image_path" "$input_fmt")
 
   local working_image_path
-  working_image_path=$(pre_process "$image_path" "$image_format") || fatal "HEX to BIN conversion failed"
+  working_image_path=$(pre_process "$image_path" "$image_format") \
+    || fatal "HEX to BIN conversion failed"
 
   printvar image_path "sign"
   printvar image_format
@@ -232,7 +237,8 @@ sign_image() {
   printvar algorithm
   [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" options "${opts[*]}"
 
-  add_hash_footer "$working_image_path" "$partition_size" "$partition_name" "$private_key" "$algorithm" "${opts[@]}" \
+  add_hash_footer "$working_image_path" "$partition_size" "$partition_name" \
+    "$private_key" "$algorithm" "${opts[@]}" \
     || fatal "Signing failed for $image_path"
 
   post_process "$image_path" "$image_format" "$working_image_path" \
@@ -247,15 +253,24 @@ make_vbmeta_image() {
   local algorithm="$3"
   local output_format="$4"
   local output_addr="$5"
-  shift 5
+  local vbmeta_mode="$6"
+  local vbmeta_partition_size="$7"
+  local block_size="$8"
+  local append_opt_str="$9"
+  shift 9
   local opts=( "$@" )
+  local temp_vbmeta
 
   if [ -z "$out_vbmeta" ]; then
     fatal "Output vbmeta image path not specified"
   fi
 
-  if [ -e "$out_vbmeta" ]; then
+  if [[ $vbmeta_mode == "make" && -e "$out_vbmeta" ]]; then
     rm -f "$out_vbmeta"
+  fi
+
+  if [[ $vbmeta_mode == "append" && "$vbmeta_partition_size" = "0" ]]; then
+    fatal "Append options not specified in vbmeta append mode"
   fi
 
   if ! check_alg "$algorithm" ; then
@@ -267,17 +282,42 @@ make_vbmeta_image() {
   printvar algorithm
   printvar output_format
   printvar output_addr
+  printvar vbmeta_mode
+  printvar vbmeta_partition_size
+  printvar block_size "bytes"
+  printvar append_opt_str
   [[ ${#opts[@]} -gt 0 ]] && printf "%-16s : %s\n" options "${opts[*]}"
 
   "$AVBTOOL" make_vbmeta_image --output "$TMP_BIN" \
     --key "$private_key" --algorithm "$algorithm" "${opts[@]}" \
     || fatal "make_vbmeta_image failed for $TMP_BIN"
 
-  if [ "$output_format" == "ihex" ]; then
-    bin2hex "$output_addr" "$TMP_BIN" "$TMP_HEX" || return 1
-    cp "$TMP_HEX" "$out_vbmeta"
+  if [ $vbmeta_mode == "make" ]; then
+    if [ "$output_format" == "ihex" ]; then
+      bin2hex "$output_addr" "$TMP_BIN" "$TMP_HEX" || return 1
+      cp "$TMP_HEX" "$out_vbmeta"
+    else
+      cp "$TMP_BIN" "$out_vbmeta"
+    fi
   else
-    cp "$TMP_BIN" "$out_vbmeta"
+    local image_format
+    local working_image_path
+    temp_vbmeta="$(dirname "$out_vbmeta")/vbmeta_append.img"
+    cp "$TMP_BIN" "$temp_vbmeta"
+    image_format=$(auto_detect_format "$out_vbmeta" "auto")
+    working_image_path=$(pre_process "$out_vbmeta" "$image_format") \
+      || fatal "HEX to BIN conversion failed"
+
+    read -ra append_opts <<< "$append_opt_str"
+    append_opts=(${append_opts[@]} --vbmeta_image "$temp_vbmeta")
+    append_opts=(${append_opts[@]} --image "$working_image_path")
+    append_opts=(${append_opts[@]} --partition_size "$vbmeta_partition_size")
+    append_opts=(${append_opts[@]} --block_size "$block_size")
+    "$AVBTOOL" append_vbmeta_image "${append_opts[@]}" \
+      || fatal "append_vbmeta_image failed"
+
+    post_process "$out_vbmeta" "$image_format" "$working_image_path" \
+      || fatal "post_process (BIN->HEX) failed for $image_path"
   fi
 
   return 0
@@ -285,14 +325,17 @@ make_vbmeta_image() {
 
 IN_PRIVKEY=$DEFAULT_KEY
 ALGORITHM=$DEFAULT_ALG
+BLOCK_SIZE="4096"
 VBMETA_OPTS_STR=""
 VBMETA_OPTS=()
 VBMETA_FMT="auto"
-VBMETA_MODE=0
+VBMETA_MODE=""
 VBMETA_OUTPUT=""
 VBMETA_PATH=""
 VBMETA_HEX_ADDR=""
 VBMETA_ADDR="0x0"
+VBMETA_APPEND_OPT=""
+VBMETA_PARTITION_SIZE="0"
 
 parse_arg() {
   if [ $# -lt 2 ]; then
@@ -300,42 +343,81 @@ parse_arg() {
   fi
 
   #parse global options
-  while [ $# -gt 0 ]; do
+  while [[ $# -gt 0 ]]; do
     case "$1" in
       --make_vbmeta)
-        shift; [[ $# -lt 1 ]] && fatal "global option --make_vbmeta requires an argument"
-        VBMETA_MODE=1
-        VBMETA_OUTPUT=$1
+        shift; [[ $# -lt 1 ]] \
+          && fatal "global option --make_vbmeta requires an argument"
+        [[ ! -d $(dirname "$1") ]] \
+          && fatal "global option --make_vbmeta requires a valid output path argument"
+        [[ "$VBMETA_MODE" == "append" ]] \
+          && fatal "global option --make_vbmeta cannot be used with --make_vbmeta"
+        VBMETA_OUTPUT="$1"
         VBMETA_PATH=$(dirname "$VBMETA_OUTPUT")
-        if [ ! -d "$VBMETA_PATH" ]; then
-          fatal "global option --make_vbmeta requires a valid output path argument"
-        fi
+        VBMETA_MODE="make"
         shift
         ;;
       --alg)
         shift; [[ $# -lt 1 ]] && fatal "global option --alg requires an argument"
-        ALGORITHM=$1; shift
+        ALGORITHM="$1"; shift
         ;;
       --key)
         shift; [[ $# -lt 1 ]] && fatal "global option --key requires an argument"
-        IN_PRIVKEY=$1; shift
+        IN_PRIVKEY="$1"; shift
         ;;
       --opt)
-        [[ $VBMETA_MODE != 1 ]] && fatal "global option --opt must be used with --make_vbmeta"
+        [[ -z "$VBMETA_MODE" ]] \
+          && fatal "global option --opt must be used with --make_vbmeta or --append_vbmeta"
         shift; [[ $# -lt 1 ]] && fatal "global option --opt requires an argument"
         VBMETA_OPTS_STR="$VBMETA_OPTS_STR $1"; shift
         ;;
-       --format)
-        [[ $VBMETA_MODE != 1 ]]  && fatal "global option --format must be used with --make_vbmeta"
+      --format)
+        [[ "$VBMETA_MODE" != "make" ]] \
+          && fatal "global option --format must be used with --make_vbmeta"
         shift; [[ $# -lt 1 ]] && fatal "global option --format requires an argument"
         [[ "$1" != "ihex" && "$1" != "binary" && "$1" != "auto" ]] && \
           fatal "Unsupported input format: $1 (--format must be ihex, binary or auto)"
         VBMETA_FMT="$1"; shift
         ;;
-       --addr)
-        [[ $VBMETA_MODE != 1 ]]  && fatal "global option --addr must be used with --make_vbmeta"
+      --addr)
+        [[ "$VBMETA_MODE" != "make" ]] \
+          && fatal "global option --addr must be used with --make_vbmeta"
         shift; [[ $# -lt 1 ]] && fatal "global option --addr requires an argument"
         VBMETA_ADDR="$1"; shift
+        ;;
+      --append_vbmeta)
+        shift; [[ $# -lt 1 ]] \
+          && fatal "global option --append_vbmeta requires a valid output path argument"
+        [[ "$VBMETA_MODE" == "make" ]] \
+          && fatal "global option --append_vbmeta cannot be used with --make_vbmeta"
+        [[ ! -e $(dirname "$VBMETA_OUTPUT") ]] \
+          && fatal "global option --append_vbmeta requires a valid output path argument"
+        VBMETA_OUTPUT="$1"
+        VBMETA_PATH=$(dirname "$VBMETA_OUTPUT")
+        VBMETA_MODE="append"
+        shift
+        ;;
+      --append_opt)
+        [[ "$VBMETA_MODE" != "append" ]] \
+          && fatal "global option --append_opt must be used with --append_vbmeta"
+        shift; [[ $# -lt 1 ]] \
+          && fatal "global option --append_opt requires an argument"
+        VBMETA_APPEND_OPT="$1"; shift
+        ;;
+      --part_size)
+        [[ -z "$VBMETA_MODE" ]] \
+          && fatal "global option --part_size must be used with --append_vbmeta or --make_vbmeta"
+        shift;
+        [[ $# -lt 1 ]] && fatal "global option --part_size requires an argument"
+        VBMETA_PARTITION_SIZE=$(( "$1" * KSIZE )); shift
+        if ! echo "$VBMETA_PARTITION_SIZE" | grep -Eq '^[0-9]+$'; then
+          echo "Error: Size must be an integer KB (got invalid value: $VBMETA_PARTITION_SIZE)"
+          help
+        fi
+        ;;
+      --block_size)
+        shift; [[ $# -lt 1 ]] && fatal "global option --append_opt requires an argument"
+        BLOCK_SIZE="$1"; shift
         ;;
       --help|-h)
         help
@@ -347,7 +429,8 @@ parse_arg() {
   done
 
   while [ $# -gt 0 ]; do
-    local image="" psize="" key="" alg="" part="" fmt="" item_opts_str="" item_opts=()
+    local image="" psize="" key="" alg="" part="" fmt="" bs="" \
+      item_opts_str="" item_opts=()
     image="$1"
     shift || { echo "Error: Missing image argument"; help; }
 
@@ -409,15 +492,20 @@ parse_arg() {
     [[ -z "$alg" ]] && alg="$ALGORITHM"
     [[ -z "$fmt" ]] && fmt="auto"
     [[ -z "$part" ]] && part=$(basename "$image")
+    bs="$BLOCK_SIZE"
 
     # Convert item options string back to array
     read -ra item_opts <<< "$item_opts_str"
 
     # Add vbmeta related options if in vbmeta mode
-    if [[ $VBMETA_MODE == 1 ]]; then
+    if [[ ! -z "$VBMETA_MODE" ]]; then
       item_opts=(${item_opts[@]} --do_not_append_vbmeta_image)
-      item_opts=(${item_opts[@]} --output_vbmeta_image $VBMETA_PATH/$(basename "$image").vbmeta)
-      VBMETA_OPTS=(${VBMETA_OPTS[@]} --include_descriptors_from_image $VBMETA_PATH/$(basename "$image").vbmeta)
+      item_opts=(${item_opts[@]} \
+        --output_vbmeta_image $VBMETA_PATH/$(basename "$image").vbmeta)
+      VBMETA_OPTS=(${VBMETA_OPTS[@]} \
+        --include_descriptors_from_image $VBMETA_PATH/$(basename "$image").vbmeta)
+    else
+      item_opts=(${item_opts[@]} --block_size "$bs")
     fi
 
     # Sign the image
@@ -428,8 +516,11 @@ parse_arg() {
 
 parse_arg "$@"
 
-if [[ $VBMETA_MODE == 1 ]]; then
-  read -ra TEMP_OPTS <<< "$VBMETA_OPTS_STR"; VBMETA_OPTS=(${VBMETA_OPTS[@]} ${TEMP_OPTS[@]})
-  make_vbmeta_image "$VBMETA_OUTPUT" "$IN_PRIVKEY" "$ALGORITHM" "$VBMETA_FMT" "$VBMETA_ADDR" "${VBMETA_OPTS[@]}"  \
-  || fatal "make_vbmeta_image failed for $VBMETA_OUTPUT"
+if [[ ! -z "$VBMETA_MODE" ]]; then
+  read -ra TEMP_OPTS <<< "$VBMETA_OPTS_STR"
+  VBMETA_OPTS=(${VBMETA_OPTS[@]} ${TEMP_OPTS[@]})
+  make_vbmeta_image "$VBMETA_OUTPUT" "$IN_PRIVKEY" "$ALGORITHM" \
+    "$VBMETA_FMT" "$VBMETA_ADDR" "$VBMETA_MODE" \
+    "$VBMETA_PARTITION_SIZE" "$BLOCK_SIZE" "$VBMETA_APPEND_OPT" "${VBMETA_OPTS[@]}" \
+      || fatal "make_vbmeta_image failed for $VBMETA_OUTPUT"
 fi
