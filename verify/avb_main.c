@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "avb_verify.h"
+#include <libavb_user/libavb_user.h>
 #include <unistd.h>
 
 void usage(const char* progname)

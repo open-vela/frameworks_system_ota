@@ -36,8 +36,8 @@ if(CONFIG_OTA_UI)
 endif()
 
 if(CONFIG_UTILS_AVB_VERIFY)
-  set(AVB_VERIFY_CSRCS verify/avb_main.c verify/avb_verify.c)
-  set(AVB_VERIFY_INCDIR ${NUTTX_APPS_DIR}/external/avb/avb/libavb)
+  set(AVB_VERIFY_CSRCS verify/avb_main.c)
+  set(AVB_VERIFY_INCDIR ${NUTTX_APPS_DIR}/external/avb/avb)
 
   nuttx_add_application(
     MODULE
