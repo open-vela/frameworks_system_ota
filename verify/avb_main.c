@@ -19,25 +19,30 @@
 
 void usage(const char* progname)
 {
-    avb_printf("Usage: %s [-b] [-i] <partition> <key> [suffix]\n", progname);
+    avb_printf("Usage: %s [-b] [-i] [-V vbmeta_partition] <partition> <key> [suffix]\n", progname);
     avb_printf("       %s [-U] <image> <partition> <key>\n", progname);
     avb_printf("       %s [-I] <partition>\n", progname);
 
     avb_printf("\nExamples\n");
     avb_printf("  -  Boot Verify\n");
     avb_printf("     %s <partition> <key> [suffix]\n", progname);
+    avb_printf("  -  Boot Verify use vbmeta partition mode\n");
+    avb_printf("     %s -V <vbmeta_partition> <partition> <key> [suffix]\n", progname);
     avb_printf("  -  Upgrade Verify\n");
     avb_printf("     %s -U <image> <partition> <key> [suffix]\n", progname);
     avb_printf("  -  Image Info\n");
     avb_printf("     %s -I <image>\n", progname);
+    avb_printf("  -  Image Info use vbmeta partition mode\n");
+    avb_printf("     %s -V <vbmeta_partition> -I <image>\n", progname);
 }
 
 int main(int argc, char* argv[])
 {
     struct avb_params_t params = { 0 };
+    bool vbmeta_partition_mode = false;
     int ret;
 
-    while ((ret = getopt(argc, argv, "bhiI:U:")) != -1) {
+    while ((ret = getopt(argc, argv, "bhiI:U:V:")) != -1) {
         switch (ret) {
         case 'b':
             break;
@@ -46,15 +51,24 @@ int main(int argc, char* argv[])
             break;
         case 'I': {
             struct avb_hash_desc_t hash_desc;
-            if (!avb_hash_desc(optarg, &hash_desc)) {
+            if (vbmeta_partition_mode) {
+                ret = avb_vbmeta_hash_desc(params.vbmeta, optarg, &hash_desc);
+            } else {
+                ret = avb_hash_desc(optarg, &hash_desc);
+            }
+
+            if (ret == AVB_SLOT_VERIFY_RESULT_OK) {
                 avb_hash_desc_dump(&hash_desc);
                 return 0;
             }
             return 1;
-            break;
         }
         case 'U':
             params.image = optarg;
+            break;
+        case 'V':
+            vbmeta_partition_mode = true;
+            params.vbmeta = optarg;
             break;
         case 'h':
             usage(argv[0]);
@@ -76,9 +90,14 @@ int main(int argc, char* argv[])
     params.key = argv[optind + 1];
     params.suffix = argv[optind + 2];
 
+    if (!vbmeta_partition_mode) {
+        params.flags |= AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION;
+    }
+
     ret = avb_verify(&params);
-    if (ret != 0)
+    if (ret != 0) {
         avb_printf("%s error %d\n", argv[0], ret);
+    }
 
     return ret;
 }
