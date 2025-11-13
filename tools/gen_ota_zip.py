@@ -200,7 +200,7 @@ def gen_diff_ota(args):
     if args.newpartition:
         newpartition_list = list(set(new_files) - set(old_files))
         for file in newpartition_list:
-            if not file[i].startswith("vela_") or not file[i].endswith((".elf", ".bin")):
+            if not file.startswith("vela_") or not file.endswith((".elf", ".bin")):
                 newpartition_list.remove(file)
 
     ota_zip = zipfile.ZipFile('%s' % args.output, 'w', compression=zipfile.ZIP_DEFLATED)
