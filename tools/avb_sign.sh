@@ -429,7 +429,7 @@ parse_arg() {
   done
 
   while [ $# -gt 0 ]; do
-    local image="" psize="" key="" alg="" part="" fmt="" bs="" \
+    local image="" psize="" key="" alg="" part="" fmt="" \
       item_opts_str="" item_opts=()
     image="$1"
     shift || { echo "Error: Missing image argument"; help; }
@@ -492,7 +492,6 @@ parse_arg() {
     [[ -z "$alg" ]] && alg="$ALGORITHM"
     [[ -z "$fmt" ]] && fmt="auto"
     [[ -z "$part" ]] && part=$(basename "$image")
-    bs="$BLOCK_SIZE"
 
     # Convert item options string back to array
     read -ra item_opts <<< "$item_opts_str"
@@ -504,8 +503,6 @@ parse_arg() {
         --output_vbmeta_image $VBMETA_PATH/$(basename "$image").vbmeta)
       VBMETA_OPTS=(${VBMETA_OPTS[@]} \
         --include_descriptors_from_image $VBMETA_PATH/$(basename "$image").vbmeta)
-    else
-      item_opts=(${item_opts[@]} --block_size "$bs")
     fi
 
     # Sign the image
