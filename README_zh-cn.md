@@ -110,7 +110,7 @@ vela 提供了python打包脚本 `gen_ota_zip.py`,  可根据业务需要生成�
   $ ./gen_ota_zip.py old new --sign
   ...
   #ota.zip为签名ota包
-  $ ls *.zip 
+  $ ls *.zip
   ota.zip
   ```
 
@@ -223,9 +223,9 @@ vela验签主要包括分区验签和包验签，分别对应avb_verify和zip_ve
 * 使用（vendor/`<VENDOR>`/boards/`<BOARD>`/src/etc/init.d/ **rcS.bl** ）
   ```Bash
   # avb_verify
-  #    参数1：要校验的文件
-  #    参数2：Key
-  avb_verify /dev/ap /etc/key.avb
+  #    参数1：-k Key
+  #    参数2：要校验的文件
+  avb_verify -k /etc/key.avb /dev/ap
   if [ $? -eq 0 ]
   then
     boot /dev/ap

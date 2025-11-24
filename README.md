@@ -225,9 +225,9 @@ Enable AVB
 
 ```Bash
 # avb_verify
-#    param1：file to be verified
-#    param2：Key
-avb_verify /dev/ap /etc/key.avb
+#    param1：-k Key
+#    param2：file to be verified
+avb_verify -k /etc/key.avb /dev/ap
 if [ $? -eq 0 ]
 then
   boot /dev/ap

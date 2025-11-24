@@ -343,7 +343,7 @@ setprop ota.progress.next %d
         str = \
 '''
 echo "verify %s"%s
-time "avb_verify -U /ota/%s %s /etc/key.avb"
+time "avb_verify -U /ota/%s -k /etc/key.avb %s"
 if [ $? -ne 0 ]
 then
     echo "Check %s version failed!"%s
